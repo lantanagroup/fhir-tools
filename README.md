@@ -1,10 +1,10 @@
 # fhir-backup
-Setup:
-git clone
-npm install
+### Setup:
+* git clone
+* npm install
 
-USAGE: 
-Export data from a FHIR server
+### USAGE: 
+### Export data from a FHIR server
 
 Positionals:
   fhir_base  The base url of the fhir server                 [string] [required]

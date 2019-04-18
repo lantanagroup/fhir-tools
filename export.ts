@@ -89,7 +89,7 @@ export class Export {
 
                         if (this.bundles[resourceType].length > 0) {
                             _.each(this.bundles[resourceType], (bundle: any) => {
-                                totalEntries += bundle.entry.length;
+                                totalEntries += (bundle.entry ? bundle.entry.length : 0);
                             });
 
                             if (totalEntries !== this.bundles[resourceType][0].total) {

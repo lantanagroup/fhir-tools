@@ -75,7 +75,7 @@ var Export = (function () {
                 var totalEntries = 0;
                 if (_this.bundles[resourceType].length > 0) {
                     _.each(_this.bundles[resourceType], function (bundle) {
-                        totalEntries += bundle.entry.length;
+                        totalEntries += (bundle.entry ? bundle.entry.length : 0);
                     });
                     if (totalEntries !== _this.bundles[resourceType][0].total) {
                         console.error("Expected " + _this.bundles[resourceType][0].total + " but actually have " + totalEntries + " for " + resourceType);

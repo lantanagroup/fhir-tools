@@ -5,7 +5,8 @@
 
 ### USAGE: 
 ### Export data from a FHIR server
-
+* node index.js (export|import) <fhir_base> <out-file>
+ 
 * Positionals:
   * fhir_base  The base url of the fhir server                 [string] [required]
   * out_file   Location on computer to store the export        [string] [required]

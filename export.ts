@@ -3,8 +3,12 @@ import * as Q from 'q';
 import * as urljoin from 'url-join';
 import * as _ from 'underscore';
 import * as fs from 'fs';
+import * as shortid from 'shortid';
 import {FixIds} from './fixids';
 import {FixR4} from './fixR4';
+import {FixUrls} from "./fixUrls";
+import {FixSubscriptions} from "./fixSubscriptions";
+import {FixMedia} from "./fixMedia";
 
 export class Export {
     readonly fhirBase: string;
@@ -132,11 +136,20 @@ export class Export {
 
                 console.log('Cleaning up the ids to make sure they can all be imported into a HAPI server');
 
-                const fixids = new FixIds(transactionBundle);
-                fixids.fix();
+                const fixIds = new FixIds(transactionBundle);
+                fixIds.fix();
 
                 const fixR4 = new FixR4(transactionBundle);
                 fixR4.fix();
+
+                const fixUrls = new FixUrls(transactionBundle);
+                fixUrls.execute();
+
+                const fixSubscriptions = new FixSubscriptions(transactionBundle);
+                fixSubscriptions.execute();
+
+                const fixMedia = new FixMedia(transactionBundle);
+                fixMedia.execute();
 
                 console.log('Done cleaning ids... Saving results to ' + this.outFile);
 

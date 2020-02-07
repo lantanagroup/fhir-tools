@@ -7,6 +7,9 @@ var _ = require("underscore");
 var fs = require("fs");
 var fixids_1 = require("./fixids");
 var fixR4_1 = require("./fixR4");
+var fixUrls_1 = require("./fixUrls");
+var fixSubscriptions_1 = require("./fixSubscriptions");
+var fixMedia_1 = require("./fixMedia");
 var Export = (function () {
     function Export(fhirBase, outFile, pageSize, version) {
         this.bundles = {};
@@ -111,10 +114,16 @@ var Export = (function () {
                 });
             });
             console.log('Cleaning up the ids to make sure they can all be imported into a HAPI server');
-            var fixids = new fixids_1.FixIds(transactionBundle);
-            fixids.fix();
+            var fixIds = new fixids_1.FixIds(transactionBundle);
+            fixIds.fix();
             var fixR4 = new fixR4_1.FixR4(transactionBundle);
             fixR4.fix();
+            var fixUrls = new fixUrls_1.FixUrls(transactionBundle);
+            fixUrls.execute();
+            var fixSubscriptions = new fixSubscriptions_1.FixSubscriptions(transactionBundle);
+            fixSubscriptions.execute();
+            var fixMedia = new fixMedia_1.FixMedia(transactionBundle);
+            fixMedia.execute();
             console.log('Done cleaning ids... Saving results to ' + _this.outFile);
             fs.writeFileSync(_this.outFile, JSON.stringify(transactionBundle));
             console.log("Created file " + _this.outFile + " with a Bundle of " + transactionBundle.total + " entries");

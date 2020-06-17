@@ -12,7 +12,7 @@ export class FixUrls {
         const duplicateUrls = (this.bundle.entry || [])
             .filter((entry: any) => {
                 if (!entry.resource || !entry.resource.url) return false;
-                const found = this.bundle.entry.filter(e => e !== entry && e.resource.url === entry.resource.url);
+                const found = this.bundle.entry.filter((e: any) => e !== entry && e.resource.url === entry.resource.url);
                 return found.length > 0;
             });
 

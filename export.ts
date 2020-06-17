@@ -3,7 +3,6 @@ import * as Q from 'q';
 import * as urljoin from 'url-join';
 import * as _ from 'underscore';
 import * as fs from 'fs';
-import * as shortid from 'shortid';
 import {FixIds} from './fixids';
 import {FixR4} from './fixR4';
 import {FixUrls} from "./fixUrls";
@@ -16,11 +15,13 @@ export class Export {
     private outFile: string;
     private resourceTypes: string[];
     private bundles: { [resourceType: string]: any[] } = {};
+    private version: 'dstu3'|'r4';
 
     constructor(fhirBase: string, outFile: string, pageSize: number, version: 'dstu3'|'r4') {
         this.fhirBase = fhirBase;
         this.outFile = outFile;
         this.pageSize = pageSize;
+        this.version = version;
 
         if (version === 'dstu3') {
             this.resourceTypes = ['Account', 'ActivityDefinition', 'AllergyIntolerance', 'AdverseEvent', 'Appointment', 'AppointmentResponse', 'AuditEvent', 'Basic', 'Binary', 'BodySite', 'Bundle', 'CapabilityStatement', 'CarePlan', 'CareTeam', 'ChargeItem', 'Claim', 'ClaimResponse', 'ClinicalImpression', 'CodeSystem', 'Communication', 'CommunicationRequest', 'CompartmentDefinition', 'Composition', 'ConceptMap', 'Condition', 'Consent', 'Contract', 'Coverage', 'DataElement', 'DetectedIssue', 'Device', 'DeviceComponent', 'DeviceMetric', 'DeviceRequest', 'DeviceUseStatement', 'DiagnosticReport', 'DocumentManifest', 'DocumentReference', 'EligibilityRequest', 'EligibilityResponse', 'Encounter', 'Endpoint', 'EnrollmentRequest', 'EnrollmentResponse', 'EpisodeOfCare', 'ExpansionProfile', 'ExplanationOfBenefit', 'FamilyMemberHistory', 'Flag', 'Goal', 'GraphDefinition', 'Group', 'GuidanceResponse', 'HealthcareService', 'ImagingManifest', 'ImagingStudy', 'Immunization', 'ImmunizationRecommendation', 'ImplementationGuide', 'Library', 'Linkage', 'List', 'Location', 'Measure', 'MeasureReport', 'Media', 'Medication', 'MedicationAdministration', 'MedicationDispense', 'MedicationRequest', 'MedicationStatement', 'MessageDefinition', 'MessageHeader', 'NamingSystem', 'NutritionOrder', 'Observation', 'OperationDefinition', 'OperationOutcome', 'Organization', 'Parameters', 'Patient', 'PaymentNotice', 'PaymentReconciliation', 'Person', 'PlanDefinition', 'Practitioner', 'PractitionerRole', 'Procedure', 'ProcedureRequest', 'ProcessRequest', 'ProcessResponse', 'Provenance', 'Questionnaire', 'QuestionnaireResponse', 'ReferralRequest', 'RelatedPerson', 'RequestGroup', 'ResearchStudy', 'ResearchSubject', 'RiskAssessment', 'Schedule', 'SearchParameter', 'Sequence', 'ServiceDefinition', 'Slot', 'Specimen', 'StructureDefinition', 'StructureMap', 'Subscription', 'Substance', 'SupplyDelivery', 'SupplyRequest', 'Task', 'TestScript', 'TestReport', 'ValueSet', 'VisionPrescription'];
@@ -29,6 +30,20 @@ export class Export {
         } else {
             throw new Error('Invalid FHIR version ' + version);
         }
+    }
+
+    private async getResource(resourceType: string, id: string) {
+        const url = this.fhirBase + (this.fhirBase.endsWith('/') ? '' : '/') + resourceType + '/' + id;
+
+        return new Promise((resolve, reject) => {
+            request(url, { json: true }, (err, response, body) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(body);
+                }
+            });
+        });
     }
 
     private getBundle(nextUrl: string, resourceType: string) {
@@ -109,55 +124,112 @@ export class Export {
         return deferred.promise;
     }
 
-    public execute() {
-        this.processQueue()
-            .then(() => {
-                const transactionBundle = {
-                    resourceType: 'Bundle',
-                    type: 'transaction',
-                    total: 0,
-                    entry: <any[]> []
-                };
+    public async execute() {
+        await this.processQueue();
 
-                _.each(this.bundles, (bundles: any, resourceType: string) => {
-                    _.each(bundles, (bundle: any) => {
-                        _.each(bundle.entry, (entry: any) => {
-                            transactionBundle.entry.push({
-                                resource: entry.resource,
-                                request: {
-                                    method: 'PUT',
-                                    url: `${resourceType}/${entry.resource.id}`
-                                }
+        const transactionBundle = {
+            resourceType: 'Bundle',
+            type: 'transaction',
+            total: 0,
+            entry: <any[]> []
+        };
+
+        let igResources: any[] = [];
+
+        _.each(this.bundles, (bundles: any, resourceType: string) => {
+            _.each(bundles, (bundle: any) => {
+                _.each(bundle.entry, (entry: any) => {
+                    if (entry.resource.resourceType === 'ImplementationGuide') {
+                        if (this.version === 'r4' && entry.resource.definition && entry.resource.definition.resource) {
+                            const nextIgResources = entry.resource.definition.resource
+                                .filter((r: any) => r.reference && r.reference.reference)
+                                .map((r: any) => r.reference.reference);
+                            igResources = igResources.concat(nextIgResources);
+                        } else if (this.version === 'dstu3') {
+                            (entry.resource.package || []).forEach((p: any) => {
+                                const nextIgResources = (p.resource || [])
+                                    .filter((r: any) => r.sourceReference && r.sourceReference.reference)
+                                    .map((r: any) => r.sourceReference.reference);
+                                igResources = igResources.concat(nextIgResources);
                             });
-                            transactionBundle.total++;
-                        });
+                        }
+                    }
+
+                    transactionBundle.entry.push({
+                        resource: entry.resource,
+                        request: {
+                            method: 'PUT',
+                            url: `${resourceType}/${entry.resource.id}`
+                        }
                     });
+                    transactionBundle.total++;
                 });
-
-                console.log('Cleaning up the ids to make sure they can all be imported into a HAPI server');
-
-                const fixIds = new FixIds(transactionBundle);
-                fixIds.fix();
-
-                const fixR4 = new FixR4(transactionBundle);
-                fixR4.fix();
-
-                const fixUrls = new FixUrls(transactionBundle);
-                fixUrls.execute();
-
-                const fixSubscriptions = new FixSubscriptions(transactionBundle);
-                fixSubscriptions.execute();
-
-                const fixMedia = new FixMedia(transactionBundle);
-                fixMedia.execute();
-
-                console.log('Done cleaning ids... Saving results to ' + this.outFile);
-
-                fs.writeFileSync(this.outFile, JSON.stringify(transactionBundle));
-                console.log(`Created file ${this.outFile} with a Bundle of ${transactionBundle.total} entries`);
-            })
-            .catch((err) => {
-                console.error(err);
             });
+        });
+
+        const extraTransaction = {
+            total: 0,
+            entry: <any> []
+        };
+
+        for (let igResource of igResources) {
+            const refSplit = igResource.split('/');
+
+            if (refSplit.length === 2) {
+                const foundInBundle = transactionBundle.entry.find(e => e.resource && e.resource.resourceType === refSplit[0] && e.resource.id === refSplit[1]);
+
+                if (!foundInBundle) {
+                    console.log('Attempting to retrieve implementation guide resource not found in returned bundle: ' + igResource);
+
+                    try {
+                        const resource = await this.getResource(refSplit[0], refSplit[1]);
+                        const entry = {
+                            resource: resource,
+                            request: {
+                                method: 'PUT',
+                                url: igResource
+                            }
+                        };
+
+                        transactionBundle.entry.push(entry);
+                        extraTransaction.entry.push(entry);
+                        transactionBundle.total++;
+                        extraTransaction.total++;
+
+                        console.log(`Added ${igResource} to transaction bundle`);
+                    } catch (ex) {
+                        console.log(`Error retrieving implementation guide resource ${igResource}: ${ex.message}`);
+                    }
+                }
+            }
+        }
+
+        if (extraTransaction.total > 0) {
+            fs.writeFileSync('extra.json', JSON.stringify(extraTransaction, null, '\t'));
+        }
+
+        console.log('Cleaning up the ids to make sure they can all be imported into a HAPI server');
+
+        const fixIds = new FixIds(transactionBundle);
+        fixIds.fix();
+
+        if (this.version === 'r4') {
+            const fixR4 = new FixR4(transactionBundle);
+            fixR4.fix();
+        }
+
+        const fixUrls = new FixUrls(transactionBundle);
+        fixUrls.execute();
+
+        const fixSubscriptions = new FixSubscriptions(transactionBundle);
+        fixSubscriptions.execute();
+
+        const fixMedia = new FixMedia(transactionBundle);
+        fixMedia.execute();
+
+        console.log('Done cleaning ids... Saving results to ' + this.outFile);
+
+        fs.writeFileSync(this.outFile, JSON.stringify(transactionBundle));
+        console.log(`Created file ${this.outFile} with a Bundle of ${transactionBundle.total} entries`);
     }
 }

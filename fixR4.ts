@@ -4,7 +4,6 @@ import * as _ from 'underscore';
 export class FixR4 {
     private filePath: string;
     private content: any;
-    private ids: IdModel[];
 
     constructor(bundle: any) {
         if (typeof bundle === 'string') {
@@ -37,7 +36,7 @@ export class FixR4 {
     }
 
     public fix() {
-        _.each(this.content.entry, (entry) => this.fixResource(entry.resource));
+        _.each(this.content.entry, (entry: any) => this.fixResource(entry.resource));
     }
 
     public save() {

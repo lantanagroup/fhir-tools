@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import {Export} from './export';
 import {Import} from './import';
 import {FixIds} from './fixids';
+import {Transfer} from "./transfer";
 
 class ExportOptions {
     public fhir_base: string;
@@ -36,6 +37,12 @@ export class Main {
                 fixids.fix();
                 fixids.save();
             })
+            .command('transfer', 'Transfer resources from one server to another', (yargs: any) => {
+                // TODO: No command parameters
+            }, (argv: any) => {
+                const transfer = new Transfer();
+                transfer.execute();
+            })
             .command('import <fhir_base> <in_file>', 'Import data to a FHIR server', (yargs: any) => {
                 yargs
                     .positional('fhir_base', {
@@ -47,7 +54,7 @@ export class Main {
                         describe: 'Location on computer of the bundle to import'
                     });
             }, (argv: ImportOptions) => {
-                const importContent = fs.readFileSync(argv.in_file);
+                const importContent = fs.readFileSync(argv.in_file).toString();
                 const bundle = JSON.parse(importContent);
                 const importer = new Import(argv.fhir_base);
                 importer.execute(bundle);

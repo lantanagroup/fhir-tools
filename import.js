@@ -96,9 +96,21 @@ var Import = (function () {
         }
         return path;
     };
+    Import.prototype.parseOperationOutcome = function (oo) {
+        if (oo && oo.resourceType === 'OperationOutcome') {
+            if (oo.issue && oo.issue.length > 0) {
+                return '\r\n' + oo.issue.map(function (i) { return '- ' + i.diagnostics; }).join('\r\n');
+            }
+            else if (oo.text && oo.text.div) {
+                return '\r\n' + oo.text.div;
+            }
+        }
+        return '';
+    };
     Import.prototype.update = function (resource) {
         return __awaiter(this, void 0, void 0, function () {
             var url, options;
+            var _this = this;
             return __generator(this, function (_a) {
                 url = this.buildUrl(resource.resourceType, resource.id);
                 options = {
@@ -115,7 +127,7 @@ var Import = (function () {
                                 reject(err);
                             }
                             else if (response.statusCode !== 200 && response.statusCode !== 201) {
-                                console.error("Error occurred creating/updating resource " + resource.resourceType + (resource.id ? '/' + resource.id : '') + ": status code " + response.statusCode);
+                                console.error("Error occurred creating/updating resource " + resource.resourceType + (resource.id ? '/' + resource.id : '') + ": status code " + response.statusCode + _this.parseOperationOutcome(response.body));
                                 reject("Unexpected status code " + response.statusCode);
                             }
                             else {

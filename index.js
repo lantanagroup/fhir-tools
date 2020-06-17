@@ -5,6 +5,7 @@ var fs = require("fs");
 var export_1 = require("./export");
 var import_1 = require("./import");
 var fixids_1 = require("./fixids");
+var transfer_1 = require("./transfer");
 var ExportOptions = (function () {
     function ExportOptions() {
     }
@@ -34,6 +35,11 @@ var Main = (function () {
             fixids.fix();
             fixids.save();
         })
+            .command('transfer', 'Transfer resources from one server to another', function (yargs) {
+        }, function (argv) {
+            var transfer = new transfer_1.Transfer();
+            transfer.execute();
+        })
             .command('import <fhir_base> <in_file>', 'Import data to a FHIR server', function (yargs) {
             yargs
                 .positional('fhir_base', {
@@ -45,7 +51,7 @@ var Main = (function () {
                 describe: 'Location on computer of the bundle to import'
             });
         }, function (argv) {
-            var importContent = fs.readFileSync(argv.in_file);
+            var importContent = fs.readFileSync(argv.in_file).toString();
             var bundle = JSON.parse(importContent);
             var importer = new import_1.Import(argv.fhir_base);
             importer.execute(bundle);

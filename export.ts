@@ -1,13 +1,12 @@
 import * as request from 'request';
-import * as Q from 'q';
 import * as urljoin from 'url-join';
-import * as _ from 'underscore';
 import * as fs from 'fs';
 import {FixIds} from './fixids';
 import {FixR4} from './fixR4';
 import {FixUrls} from "./fixUrls";
 import {FixSubscriptions} from "./fixSubscriptions";
 import {FixMedia} from "./fixMedia";
+import {parseOperationOutcome} from "./helper";
 
 export class Export {
     readonly fhirBase: string;
@@ -26,14 +25,45 @@ export class Export {
         if (version === 'dstu3') {
             this.resourceTypes = ['Account', 'ActivityDefinition', 'AllergyIntolerance', 'AdverseEvent', 'Appointment', 'AppointmentResponse', 'AuditEvent', 'Basic', 'Binary', 'BodySite', 'Bundle', 'CapabilityStatement', 'CarePlan', 'CareTeam', 'ChargeItem', 'Claim', 'ClaimResponse', 'ClinicalImpression', 'CodeSystem', 'Communication', 'CommunicationRequest', 'CompartmentDefinition', 'Composition', 'ConceptMap', 'Condition', 'Consent', 'Contract', 'Coverage', 'DataElement', 'DetectedIssue', 'Device', 'DeviceComponent', 'DeviceMetric', 'DeviceRequest', 'DeviceUseStatement', 'DiagnosticReport', 'DocumentManifest', 'DocumentReference', 'EligibilityRequest', 'EligibilityResponse', 'Encounter', 'Endpoint', 'EnrollmentRequest', 'EnrollmentResponse', 'EpisodeOfCare', 'ExpansionProfile', 'ExplanationOfBenefit', 'FamilyMemberHistory', 'Flag', 'Goal', 'GraphDefinition', 'Group', 'GuidanceResponse', 'HealthcareService', 'ImagingManifest', 'ImagingStudy', 'Immunization', 'ImmunizationRecommendation', 'ImplementationGuide', 'Library', 'Linkage', 'List', 'Location', 'Measure', 'MeasureReport', 'Media', 'Medication', 'MedicationAdministration', 'MedicationDispense', 'MedicationRequest', 'MedicationStatement', 'MessageDefinition', 'MessageHeader', 'NamingSystem', 'NutritionOrder', 'Observation', 'OperationDefinition', 'OperationOutcome', 'Organization', 'Parameters', 'Patient', 'PaymentNotice', 'PaymentReconciliation', 'Person', 'PlanDefinition', 'Practitioner', 'PractitionerRole', 'Procedure', 'ProcedureRequest', 'ProcessRequest', 'ProcessResponse', 'Provenance', 'Questionnaire', 'QuestionnaireResponse', 'ReferralRequest', 'RelatedPerson', 'RequestGroup', 'ResearchStudy', 'ResearchSubject', 'RiskAssessment', 'Schedule', 'SearchParameter', 'Sequence', 'ServiceDefinition', 'Slot', 'Specimen', 'StructureDefinition', 'StructureMap', 'Subscription', 'Substance', 'SupplyDelivery', 'SupplyRequest', 'Task', 'TestScript', 'TestReport', 'ValueSet', 'VisionPrescription'];
         } else if (version === 'r4') {
-            this.resourceTypes = ['Account', 'ActivityDefinition', 'AdverseEvent', 'AllergyIntolerance', 'Appointment', 'AppointmentResponse', 'AuditEvent', 'Basic', 'Binary', 'BiologicallyDerivedProduct', 'BodyStructure', 'Bundle', 'CapabilityStatement', 'CarePlan', 'CareTeam', 'CatalogEntry', 'ChargeItem', 'ChargeItemDefinition', 'Claim', 'ClaimResponse', 'ClinicalImpression', 'CodeSystem', 'Communication', 'CommunicationRequest', 'CompartmentDefinition', 'Composition', 'ConceptMap', 'Condition (aka Problem)', 'Consent', 'Contract', 'Coverage', 'CoverageEligibilityRequest', 'CoverageEligibilityResponse', 'DetectedIssue', 'Device', 'DeviceDefinition', 'DeviceMetric', 'DeviceRequest', 'DeviceUseStatement', 'DiagnosticReport', 'DocumentManifest', 'DocumentReference', 'EffectEvidenceSynthesis', 'Encounter', 'Endpoint', 'EnrollmentRequest', 'EnrollmentResponse', 'EpisodeOfCare', 'EventDefinition', 'Evidence', 'EvidenceVariable', 'ExampleScenario', 'ExplanationOfBenefit', 'FamilyMemberHistory', 'Flag', 'Goal', 'GraphDefinition', 'Group', 'GuidanceResponse', 'HealthcareService', 'ImagingStudy', 'Immunization', 'ImmunizationEvaluation', 'ImmunizationRecommendation', 'ImplementationGuide', 'InsurancePlan', 'Invoice', 'Library', 'Linkage', 'List', 'Location', 'Measure', 'MeasureReport', 'Media', 'Medication', 'MedicationAdministration', 'MedicationDispense', 'MedicationKnowledge', 'MedicationRequest', 'MedicationStatement', 'MedicinalProduct', 'MedicinalProductAuthorization', 'MedicinalProductContraindication', 'MedicinalProductIndication', 'MedicinalProductIngredient', 'MedicinalProductInteraction', 'MedicinalProductManufactured', 'MedicinalProductPackaged', 'MedicinalProductPharmaceutical', 'MedicinalProductUndesirableEffect', 'MessageDefinition', 'MessageHeader', 'MolecularSequence', 'NamingSystem', 'NutritionOrder', 'Observation', 'ObservationDefinition', 'OperationDefinition', 'OperationOutcome', 'Organization', 'OrganizationAffiliation', 'Parameters', 'Patient', 'PaymentNotice', 'PaymentReconciliation', 'Person', 'PlanDefinition', 'Practitioner', 'PractitionerRole', 'Procedure', 'Provenance', 'Questionnaire', 'QuestionnaireResponse', 'RelatedPerson', 'RequestGroup', 'ResearchDefinition', 'ResearchElementDefinition', 'ResearchStudy', 'ResearchSubject', 'RiskAssessment', 'RiskEvidenceSynthesis', 'Schedule', 'SearchParameter', 'ServiceRequest', 'Slot', 'Specimen', 'SpecimenDefinition', 'StructureDefinition', 'StructureMap', 'Subscription', 'Substance', 'SubstancePolymer', 'SubstanceReferenceInformation', 'SubstanceSpecification', 'SupplyDelivery', 'SupplyRequest', 'Task', 'TerminologyCapabilities', 'TestReport', 'TestScript', 'ValueSet', 'VerificationResult', 'VisionPrescription'];
+            this.resourceTypes = ['Account', 'ActivityDefinition', 'AdverseEvent', 'AllergyIntolerance', 'Appointment', 'AppointmentResponse', 'AuditEvent', 'Basic', 'Binary', 'BiologicallyDerivedProduct', 'BodyStructure', 'Bundle', 'CapabilityStatement', 'CarePlan', 'CareTeam', 'CatalogEntry', 'ChargeItem', 'ChargeItemDefinition', 'Claim', 'ClaimResponse', 'ClinicalImpression', 'CodeSystem', 'Communication', 'CommunicationRequest', 'CompartmentDefinition', 'Composition', 'ConceptMap', 'Condition', 'Consent', 'Contract', 'Coverage', 'CoverageEligibilityRequest', 'CoverageEligibilityResponse', 'DetectedIssue', 'Device', 'DeviceDefinition', 'DeviceMetric', 'DeviceRequest', 'DeviceUseStatement', 'DiagnosticReport', 'DocumentManifest', 'DocumentReference', 'EffectEvidenceSynthesis', 'Encounter', 'Endpoint', 'EnrollmentRequest', 'EnrollmentResponse', 'EpisodeOfCare', 'EventDefinition', 'Evidence', 'EvidenceVariable', 'ExampleScenario', 'ExplanationOfBenefit', 'FamilyMemberHistory', 'Flag', 'Goal', 'GraphDefinition', 'Group', 'GuidanceResponse', 'HealthcareService', 'ImagingStudy', 'Immunization', 'ImmunizationEvaluation', 'ImmunizationRecommendation', 'ImplementationGuide', 'InsurancePlan', 'Invoice', 'Library', 'Linkage', 'List', 'Location', 'Measure', 'MeasureReport', 'Media', 'Medication', 'MedicationAdministration', 'MedicationDispense', 'MedicationKnowledge', 'MedicationRequest', 'MedicationStatement', 'MedicinalProduct', 'MedicinalProductAuthorization', 'MedicinalProductContraindication', 'MedicinalProductIndication', 'MedicinalProductIngredient', 'MedicinalProductInteraction', 'MedicinalProductManufactured', 'MedicinalProductPackaged', 'MedicinalProductPharmaceutical', 'MedicinalProductUndesirableEffect', 'MessageDefinition', 'MessageHeader', 'MolecularSequence', 'NamingSystem', 'NutritionOrder', 'Observation', 'ObservationDefinition', 'OperationDefinition', 'OperationOutcome', 'Organization', 'OrganizationAffiliation', 'Parameters', 'Patient', 'PaymentNotice', 'PaymentReconciliation', 'Person', 'PlanDefinition', 'Practitioner', 'PractitionerRole', 'Procedure', 'Provenance', 'Questionnaire', 'QuestionnaireResponse', 'RelatedPerson', 'RequestGroup', 'ResearchDefinition', 'ResearchElementDefinition', 'ResearchStudy', 'ResearchSubject', 'RiskAssessment', 'RiskEvidenceSynthesis', 'Schedule', 'SearchParameter', 'ServiceRequest', 'Slot', 'Specimen', 'SpecimenDefinition', 'StructureDefinition', 'StructureMap', 'Subscription', 'Substance', 'SubstancePolymer', 'SubstanceReferenceInformation', 'SubstanceSpecification', 'SupplyDelivery', 'SupplyRequest', 'Task', 'TerminologyCapabilities', 'TestReport', 'TestScript', 'ValueSet', 'VerificationResult', 'VisionPrescription'];
         } else {
             throw new Error('Invalid FHIR version ' + version);
         }
     }
 
-    private async getResource(resourceType: string, id: string) {
-        const url = this.fhirBase + (this.fhirBase.endsWith('/') ? '' : '/') + resourceType + '/' + id;
+    private async getIgResources(resources: any[]) {
+        const body = {
+            resourceType: 'Bundle',
+            type: 'batch',
+            entry: resources.map(r => {
+                return {
+                    request: {
+                        method: 'GET',
+                        url: r.reference
+                    }
+                }
+            })
+        };
+
+        return new Promise((resolve, reject) => {
+            request(this.fhirBase, { method: 'POST', json: true, body: body }, (err, response, body) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(body);
+                }
+            });
+        });
+    }
+
+    private async getResource(resourceType?: string, id?: string) {
+        let url = this.fhirBase;
+
+        if (resourceType && id) {
+            url += (this.fhirBase.endsWith('/') ? '' : '/') + resourceType + '/' + id;
+        } else if (resourceType) {
+            url += (this.fhirBase.endsWith('/') ? '' : '/') + resourceType;
+        }
 
         return new Promise((resolve, reject) => {
             request(url, { json: true }, (err, response, body) => {
@@ -46,82 +76,81 @@ export class Export {
         });
     }
 
-    private getBundle(nextUrl: string, resourceType: string) {
-        const deferred = Q.defer();
+    private async request(url: string) {
+        return new Promise((resolve, reject) => {
+            const options = {
+                json: true,
+                headers: {
+                    'Cache-Control': 'no-cache'
+                }
+            };
 
+            request(url, options, async (err, response, body) => {
+                if (err) {
+                    return reject(err);
+                }
+
+                if (response.headers && response.headers['content-type'] && !response.headers['content-type'].startsWith('application/json') && !response.headers['content-type'].startsWith('application/fhir+json')) {
+                    console.error('Response from FHIR server is not JSON!');
+                    return reject('Response from FHIR server is not JSON!');
+                }
+
+                resolve(body);
+            });
+        });
+    }
+
+    private async getBundle(nextUrl: string, resourceType: string) {
         if (!this.bundles[resourceType]) {
             this.bundles[resourceType] = [];
         }
 
         console.log(`Requesting ${nextUrl}`);
 
-        const options = {
-            json: true,
-            headers: {
-                'Cache-Control': 'no-cache'
-            }
-        };
+        const body: any = await this.request(nextUrl);
 
-        request(nextUrl, options, (err, response, body) => {
-            if (err) {
-                return deferred.reject(err);
-            }
-
-            if (body.total > 0) {
-                console.log(`Found ${body.total} ${resourceType} entries in bundle`);
-                this.bundles[resourceType].push(body);
-            } else {
-                console.log(`No entries found for ${resourceType}`);
-            }
-
-            const nextNextUrl = _.find(body.link, (link: any) => link.relation === 'next');
-
-            if (nextNextUrl) {
-                this.getBundle(nextNextUrl.url, resourceType)
-                    .then(() => deferred.resolve())
-                    .catch((err) => deferred.reject(err));
-            } else {
-                deferred.resolve();
-            }
-        });
-
-        return deferred.promise;
-    }
-
-    private processQueue() {
-        if (this.resourceTypes.length === 0) {
-            return Q.resolve();
+        if (body.entry && body.entry.length > 0) {
+            console.log(`Found ${body.entry.length} ${resourceType} entries in bundle (Bundle.total = ${body.total})`);
+            this.bundles[resourceType].push(body);
+        } else {
+            console.log(`No entries found for ${resourceType}`);
         }
 
-        const deferred = Q.defer();
+        const nextNextUrl = (body.link || []).find((link: any) => link.relation === 'next');
+
+        if (nextNextUrl && nextNextUrl.url) {
+            await this.getBundle(nextNextUrl.url, resourceType);
+        }
+    }
+
+    private async processQueue() {
+        if (this.resourceTypes.length === 0) {
+            return;
+        }
+
         const resourceType = this.resourceTypes.pop();
         let nextUrl = urljoin(this.fhirBase, resourceType);
         nextUrl += '?_count=' + this.pageSize.toString();
 
         console.log(`----------------------------\r\nStarting retrieve for ${resourceType}`);
 
-        this.getBundle(nextUrl, resourceType)
-            .then(() => {
-                this.processQueue()
-                    .then(() => {
-                        let totalEntries = 0;
+        await this.getBundle(nextUrl, resourceType);
+        await this.processQueue();
 
-                        if (this.bundles[resourceType].length > 0) {
-                            _.each(this.bundles[resourceType], (bundle: any) => {
-                                totalEntries += (bundle.entry ? bundle.entry.length : 0);
-                            });
+        if (this.bundles[resourceType] && this.bundles[resourceType].length > 0) {
+            let totalEntries = this.bundles[resourceType]
+                .reduce((previous, current) => {
+                    for (let entry of current.entry || []) {
+                        previous.push(entry);
+                    }
+                    return previous;
+                }, [])
+                .length;
 
-                            if (totalEntries !== this.bundles[resourceType][0].total) {
-                                console.error(`Expected ${this.bundles[resourceType][0].total} but actually have ${totalEntries} for ${resourceType}`);
-                            }
-                        }
-                        deferred.resolve();
-                    })
-                    .catch((err) => deferred.reject(err));
-            })
-            .catch((err) => deferred.reject(err));
-
-        return deferred.promise;
+            if (totalEntries !== this.bundles[resourceType][0].total) {
+                console.error(`Expected ${this.bundles[resourceType][0].total} but actually have ${totalEntries} for ${resourceType}`);
+            }
+        }
     }
 
     public async execute() {
@@ -134,27 +163,12 @@ export class Export {
             entry: <any[]> []
         };
 
-        let igResources: any[] = [];
+        for (let resourceType of Object.keys(this.bundles)) {
+            const bundles = this.bundles[resourceType];
 
-        _.each(this.bundles, (bundles: any, resourceType: string) => {
-            _.each(bundles, (bundle: any) => {
-                _.each(bundle.entry, (entry: any) => {
-                    if (entry.resource.resourceType === 'ImplementationGuide') {
-                        if (this.version === 'r4' && entry.resource.definition && entry.resource.definition.resource) {
-                            const nextIgResources = entry.resource.definition.resource
-                                .filter((r: any) => r.reference && r.reference.reference)
-                                .map((r: any) => r.reference.reference);
-                            igResources = igResources.concat(nextIgResources);
-                        } else if (this.version === 'dstu3') {
-                            (entry.resource.package || []).forEach((p: any) => {
-                                const nextIgResources = (p.resource || [])
-                                    .filter((r: any) => r.sourceReference && r.sourceReference.reference)
-                                    .map((r: any) => r.sourceReference.reference);
-                                igResources = igResources.concat(nextIgResources);
-                            });
-                        }
-                    }
-
+            for (let bundle of bundles) {
+                for (let entry of (bundle.entry || [])) {
+                    // Add the resource to the transaction bundle
                     transactionBundle.entry.push({
                         resource: entry.resource,
                         request: {
@@ -163,49 +177,60 @@ export class Export {
                         }
                     });
                     transactionBundle.total++;
-                });
-            });
-        });
-
-        const extraTransaction = {
-            total: 0,
-            entry: <any> []
-        };
-
-        for (let igResource of igResources) {
-            const refSplit = igResource.split('/');
-
-            if (refSplit.length === 2) {
-                const foundInBundle = transactionBundle.entry.find(e => e.resource && e.resource.resourceType === refSplit[0] && e.resource.id === refSplit[1]);
-
-                if (!foundInBundle) {
-                    console.log('Attempting to retrieve implementation guide resource not found in returned bundle: ' + igResource);
-
-                    try {
-                        const resource = await this.getResource(refSplit[0], refSplit[1]);
-                        const entry = {
-                            resource: resource,
-                            request: {
-                                method: 'PUT',
-                                url: igResource
-                            }
-                        };
-
-                        transactionBundle.entry.push(entry);
-                        extraTransaction.entry.push(entry);
-                        transactionBundle.total++;
-                        extraTransaction.total++;
-
-                        console.log(`Added ${igResource} to transaction bundle`);
-                    } catch (ex) {
-                        console.log(`Error retrieving implementation guide resource ${igResource}: ${ex.message}`);
-                    }
                 }
             }
         }
 
-        if (extraTransaction.total > 0) {
-            fs.writeFileSync('extra.json', JSON.stringify(extraTransaction, null, '\t'));
+        const igs = transactionBundle.entry
+            .filter(tbe => tbe.resource.resourceType === 'ImplementationGuide')
+            .map(tbe => tbe.resource);
+
+        // Ensure that all resources referenced by IGs are included in the export if they're on the server
+        for (let ig of igs) {
+            let igResourcesBundle: any;
+
+            console.log(`Searching for missing resources for the IG ${ig.id}`);
+
+            if (this.version === 'r4' && ig.definition && ig.definition.resource) {
+                const igResourceReferences = ig.definition.resource
+                    .filter((r: any) => r.reference && r.reference.reference)
+                    .map((r: any) => r.reference);
+                igResourcesBundle = await this.getIgResources(igResourceReferences);
+            } else if (this.version === 'dstu3') {
+                let igResourceReferences: any[] = [];
+                (ig.package || []).forEach((p: any) => {
+                    const nextResourceReferences = (p.resource || [])
+                        .filter((r: any) => r.sourceReference && r.sourceReference.reference)
+                        .map((r: any) => r.sourceReference);
+                    igResourceReferences = igResourceReferences.concat(nextResourceReferences);
+                });
+                igResourcesBundle = await this.getIgResources(igResourceReferences);
+            }
+
+            if (igResourcesBundle && igResourcesBundle.entry) {
+                const foundIgResources = igResourcesBundle.entry
+                    .filter((e: any) => e.response && e.response.status === '200 OK')
+                    .map((e: any) => e.resource);
+                const missingIgResources = foundIgResources
+                    .filter((r: any) => {
+                        return !transactionBundle.entry.find(tbe => {
+                            return tbe.resource.resourceType === r.resourceType && tbe.resource.id === r.id;
+                        });
+                    })
+                    .map((e: any) => {
+                        return {
+                            request: {
+                                method: 'PUT',
+                                resource: e.resource
+                            }
+                        };
+                    });
+
+                if (missingIgResources.length > 0) {
+                    transactionBundle.entry = transactionBundle.entry.concat(missingIgResources);
+                    console.log(`Adding ${missingIgResources.length} resources not already in export for IG ${ig.id}`);
+                }
+            }
         }
 
         console.log('Cleaning up the ids to make sure they can all be imported into a HAPI server');

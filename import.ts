@@ -1,4 +1,5 @@
 import * as request from 'request';
+import {parseOperationOutcome} from "./helper";
 
 export function joinUrl(...parts: string[]) {
     let url = '';
@@ -69,18 +70,6 @@ export class Import {
         return path;
     }
 
-    private parseOperationOutcome(oo: any): string {
-        if (oo && oo.resourceType === 'OperationOutcome') {
-            if (oo.issue && oo.issue.length > 0) {
-                return '\r\n' + oo.issue.map((i: any) => '- ' + i.diagnostics).join('\r\n');
-            } else if (oo.text && oo.text.div) {
-                return '\r\n' + oo.text.div;
-            }
-        }
-
-        return '';
-    }
-
     private async update(resource: any) {
         const url = this.buildUrl(resource.resourceType, resource.id);
         const options = {
@@ -98,7 +87,7 @@ export class Import {
                     console.error(`Error occurred creating/updating resource ${resource.resourceType}${resource.id ? '/' + resource.id : ''}: ${err}`);
                     reject(err);
                 } else if (response.statusCode !== 200 && response.statusCode !== 201) {
-                    console.error(`Error occurred creating/updating resource ${resource.resourceType}${resource.id ? '/' + resource.id : ''}: status code ${response.statusCode}${this.parseOperationOutcome(response.body)}`);
+                    console.error(`Error occurred creating/updating resource ${resource.resourceType}${resource.id ? '/' + resource.id : ''}: status code ${response.statusCode}${parseOperationOutcome(response.body)}`);
                     reject(`Unexpected status code ${response.statusCode}`);
                 } else {
                     console.log(`Done creating/updating resource ${resource.resourceType}${resource.id ? '/' + resource.id : ''}`);

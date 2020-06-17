@@ -62,9 +62,9 @@ var FixIds = (function () {
         }
     };
     FixIds.prototype.fix = function () {
-        this.ids = _.chain(this.content.entry)
-            .filter(function (entry) {
-            return entry.resource.id.match(/^\d+$/);
+        (this.content.entry || [])
+            .filter(function (entry, index) {
+            entry.resource && entry.resource.id && entry.resource.id.match(/^\d+$/);
         })
             .map(function (entry) {
             return {
@@ -72,8 +72,7 @@ var FixIds = (function () {
                 oldId: entry.resource.id,
                 newId: 't' + entry.resource.id
             };
-        })
-            .value();
+        });
         this.updateReferences(this.content);
     };
     FixIds.prototype.save = function () {

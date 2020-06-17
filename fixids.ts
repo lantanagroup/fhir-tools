@@ -58,18 +58,17 @@ export class FixIds {
     }
 
     public fix() {
-        this.ids = _.chain(this.content.entry)
-            .filter((entry) => {
-                return entry.resource.id.match(/^\d+$/);
+        (this.content.entry || [])
+            .filter((entry: any, index: number) => {
+                entry.resource && entry.resource.id && entry.resource.id.match(/^\d+$/);
             })
-            .map((entry) => {
+            .map((entry: any) => {
                 return <IdModel> {
                     resourceType: entry.resource.resourceType,
                     oldId: entry.resource.id,
                     newId: 't' + entry.resource.id
                 };
-            })
-            .value();
+            });
 
         this.updateReferences(this.content);
     }

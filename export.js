@@ -35,32 +35,85 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+var __spreadArrays = (this && this.__spreadArrays) || function () {
+    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
+    for (var r = Array(s), k = 0, i = 0; i < il; i++)
+        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
+            r[k] = a[j];
+    return r;
+};
 exports.__esModule = true;
 var request = require("request");
 var urljoin = require("url-join");
 var fs = require("fs");
-var fixids_1 = require("./fixids");
-var fixR4_1 = require("./fixR4");
-var fixUrls_1 = require("./fixUrls");
-var fixSubscriptions_1 = require("./fixSubscriptions");
-var fixMedia_1 = require("./fixMedia");
+var semver = require("semver");
 var Export = (function () {
-    function Export(fhirBase, outFile, pageSize, version) {
+    function Export(fhirBase, outFile, pageSize, includeHistory, includeIgResources, maxHistoryQueue) {
+        this.maxHistoryQueue = 10;
+        this.resourceTypes = [];
         this.bundles = {};
+        this.includeHistory = false;
+        this.includeIgResources = false;
         this.fhirBase = fhirBase;
         this.outFile = outFile;
         this.pageSize = pageSize;
-        this.version = version;
-        if (version === 'dstu3') {
-            this.resourceTypes = ['Account', 'ActivityDefinition', 'AllergyIntolerance', 'AdverseEvent', 'Appointment', 'AppointmentResponse', 'AuditEvent', 'Basic', 'Binary', 'BodySite', 'Bundle', 'CapabilityStatement', 'CarePlan', 'CareTeam', 'ChargeItem', 'Claim', 'ClaimResponse', 'ClinicalImpression', 'CodeSystem', 'Communication', 'CommunicationRequest', 'CompartmentDefinition', 'Composition', 'ConceptMap', 'Condition', 'Consent', 'Contract', 'Coverage', 'DataElement', 'DetectedIssue', 'Device', 'DeviceComponent', 'DeviceMetric', 'DeviceRequest', 'DeviceUseStatement', 'DiagnosticReport', 'DocumentManifest', 'DocumentReference', 'EligibilityRequest', 'EligibilityResponse', 'Encounter', 'Endpoint', 'EnrollmentRequest', 'EnrollmentResponse', 'EpisodeOfCare', 'ExpansionProfile', 'ExplanationOfBenefit', 'FamilyMemberHistory', 'Flag', 'Goal', 'GraphDefinition', 'Group', 'GuidanceResponse', 'HealthcareService', 'ImagingManifest', 'ImagingStudy', 'Immunization', 'ImmunizationRecommendation', 'ImplementationGuide', 'Library', 'Linkage', 'List', 'Location', 'Measure', 'MeasureReport', 'Media', 'Medication', 'MedicationAdministration', 'MedicationDispense', 'MedicationRequest', 'MedicationStatement', 'MessageDefinition', 'MessageHeader', 'NamingSystem', 'NutritionOrder', 'Observation', 'OperationDefinition', 'OperationOutcome', 'Organization', 'Parameters', 'Patient', 'PaymentNotice', 'PaymentReconciliation', 'Person', 'PlanDefinition', 'Practitioner', 'PractitionerRole', 'Procedure', 'ProcedureRequest', 'ProcessRequest', 'ProcessResponse', 'Provenance', 'Questionnaire', 'QuestionnaireResponse', 'ReferralRequest', 'RelatedPerson', 'RequestGroup', 'ResearchStudy', 'ResearchSubject', 'RiskAssessment', 'Schedule', 'SearchParameter', 'Sequence', 'ServiceDefinition', 'Slot', 'Specimen', 'StructureDefinition', 'StructureMap', 'Subscription', 'Substance', 'SupplyDelivery', 'SupplyRequest', 'Task', 'TestScript', 'TestReport', 'ValueSet', 'VisionPrescription'];
-        }
-        else if (version === 'r4') {
-            this.resourceTypes = ['Account', 'ActivityDefinition', 'AdverseEvent', 'AllergyIntolerance', 'Appointment', 'AppointmentResponse', 'AuditEvent', 'Basic', 'Binary', 'BiologicallyDerivedProduct', 'BodyStructure', 'Bundle', 'CapabilityStatement', 'CarePlan', 'CareTeam', 'CatalogEntry', 'ChargeItem', 'ChargeItemDefinition', 'Claim', 'ClaimResponse', 'ClinicalImpression', 'CodeSystem', 'Communication', 'CommunicationRequest', 'CompartmentDefinition', 'Composition', 'ConceptMap', 'Condition', 'Consent', 'Contract', 'Coverage', 'CoverageEligibilityRequest', 'CoverageEligibilityResponse', 'DetectedIssue', 'Device', 'DeviceDefinition', 'DeviceMetric', 'DeviceRequest', 'DeviceUseStatement', 'DiagnosticReport', 'DocumentManifest', 'DocumentReference', 'EffectEvidenceSynthesis', 'Encounter', 'Endpoint', 'EnrollmentRequest', 'EnrollmentResponse', 'EpisodeOfCare', 'EventDefinition', 'Evidence', 'EvidenceVariable', 'ExampleScenario', 'ExplanationOfBenefit', 'FamilyMemberHistory', 'Flag', 'Goal', 'GraphDefinition', 'Group', 'GuidanceResponse', 'HealthcareService', 'ImagingStudy', 'Immunization', 'ImmunizationEvaluation', 'ImmunizationRecommendation', 'ImplementationGuide', 'InsurancePlan', 'Invoice', 'Library', 'Linkage', 'List', 'Location', 'Measure', 'MeasureReport', 'Media', 'Medication', 'MedicationAdministration', 'MedicationDispense', 'MedicationKnowledge', 'MedicationRequest', 'MedicationStatement', 'MedicinalProduct', 'MedicinalProductAuthorization', 'MedicinalProductContraindication', 'MedicinalProductIndication', 'MedicinalProductIngredient', 'MedicinalProductInteraction', 'MedicinalProductManufactured', 'MedicinalProductPackaged', 'MedicinalProductPharmaceutical', 'MedicinalProductUndesirableEffect', 'MessageDefinition', 'MessageHeader', 'MolecularSequence', 'NamingSystem', 'NutritionOrder', 'Observation', 'ObservationDefinition', 'OperationDefinition', 'OperationOutcome', 'Organization', 'OrganizationAffiliation', 'Parameters', 'Patient', 'PaymentNotice', 'PaymentReconciliation', 'Person', 'PlanDefinition', 'Practitioner', 'PractitionerRole', 'Procedure', 'Provenance', 'Questionnaire', 'QuestionnaireResponse', 'RelatedPerson', 'RequestGroup', 'ResearchDefinition', 'ResearchElementDefinition', 'ResearchStudy', 'ResearchSubject', 'RiskAssessment', 'RiskEvidenceSynthesis', 'Schedule', 'SearchParameter', 'ServiceRequest', 'Slot', 'Specimen', 'SpecimenDefinition', 'StructureDefinition', 'StructureMap', 'Subscription', 'Substance', 'SubstancePolymer', 'SubstanceReferenceInformation', 'SubstanceSpecification', 'SupplyDelivery', 'SupplyRequest', 'Task', 'TerminologyCapabilities', 'TestReport', 'TestScript', 'ValueSet', 'VerificationResult', 'VisionPrescription'];
-        }
-        else {
-            throw new Error('Invalid FHIR version ' + version);
-        }
+        this.includeHistory = includeHistory;
+        this.includeIgResources = includeIgResources;
+        this.maxHistoryQueue = maxHistoryQueue;
     }
+    Export.newExporter = function (fhirBase, outFile, pageSize, includeHistory, resourceTypes, includeIgResources, excludeResources, maxHistoryQueue) {
+        if (includeIgResources === void 0) { includeIgResources = false; }
+        if (maxHistoryQueue === void 0) { maxHistoryQueue = 10; }
+        return __awaiter(this, void 0, void 0, function () {
+            var exporter;
+            return __generator(this, function (_a) {
+                exporter = new Export(fhirBase, outFile, pageSize, includeHistory, includeIgResources, maxHistoryQueue);
+                return [2, new Promise(function (resolve, reject) {
+                        var metadataOptions = {
+                            method: 'GET',
+                            url: fhirBase + (fhirBase.endsWith('/') ? '' : '/') + 'metadata',
+                            json: true
+                        };
+                        console.log("Checking /metadata of server to determine version and resources");
+                        request(metadataOptions, function (err, response, metadata) {
+                            if (err) {
+                                reject('Error retrieving metadata from FHIR server');
+                            }
+                            else {
+                                if (semver.satisfies(metadata.fhirVersion, '>= 3.2.0 < 4.2.0')) {
+                                    exporter.version = 'r4';
+                                }
+                                else if (semver.satisfies(metadata.fhirVersion, '>= 1.1.0 <= 3.0.2')) {
+                                    exporter.version = 'dstu3';
+                                }
+                                if (!resourceTypes || resourceTypes.length === 0) {
+                                    (metadata.rest || []).forEach(function (rest) {
+                                        (rest.resource || []).forEach(function (resource) {
+                                            if (exporter.resourceTypes.indexOf(resource.type) < 0) {
+                                                exporter.resourceTypes.push(resource.type);
+                                            }
+                                        });
+                                    });
+                                }
+                                else {
+                                    console.log('Using resource types specified by CLI options.');
+                                    exporter.resourceTypes = resourceTypes;
+                                }
+                                if (excludeResources && excludeResources.length > 0) {
+                                    console.log("Excluding " + excludeResources.length + " resource types");
+                                    exporter.resourceTypes = exporter.resourceTypes
+                                        .filter(function (resourceType) { return (excludeResources || []).indexOf(resourceType) < 0; });
+                                }
+                                exporter.resourceTypes
+                                    .sort(function (a, b) { return a.localeCompare(b); });
+                                console.log("Server is " + exporter.version + ", found " + exporter.resourceTypes.length + " resource types to export.");
+                                resolve(exporter);
+                            }
+                        });
+                    })];
+            });
+        });
+    };
     Export.prototype.getIgResources = function (resources) {
         return __awaiter(this, void 0, void 0, function () {
             var body;
@@ -214,13 +267,13 @@ var Export = (function () {
     };
     Export.prototype.execute = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var transactionBundle, _i, _a, resourceType, bundles, _b, bundles_1, bundle, _c, _d, entry, igs, _loop_1, this_1, _e, igs_1, ig, fixIds, fixR4, fixUrls, fixSubscriptions, fixMedia;
+            var exportBundle, _i, _a, resourceType, bundles, _b, bundles_1, bundle, _c, _d, entry, igs, _loop_1, this_1, _e, igs_1, ig;
             return __generator(this, function (_f) {
                 switch (_f.label) {
                     case 0: return [4, this.processQueue()];
                     case 1:
                         _f.sent();
-                        transactionBundle = {
+                        exportBundle = {
                             resourceType: 'Bundle',
                             type: 'transaction',
                             total: 0,
@@ -233,18 +286,19 @@ var Export = (function () {
                                 bundle = bundles_1[_b];
                                 for (_c = 0, _d = (bundle.entry || []); _c < _d.length; _c++) {
                                     entry = _d[_c];
-                                    transactionBundle.entry.push({
+                                    exportBundle.entry.push({
                                         resource: entry.resource,
                                         request: {
                                             method: 'PUT',
                                             url: resourceType + "/" + entry.resource.id
                                         }
                                     });
-                                    transactionBundle.total++;
+                                    exportBundle.total++;
                                 }
                             }
                         }
-                        igs = transactionBundle.entry
+                        if (!this.includeIgResources) return [3, 5];
+                        igs = exportBundle.entry
                             .filter(function (tbe) { return tbe.resource.resourceType === 'ImplementationGuide'; })
                             .map(function (tbe) { return tbe.resource; });
                         _loop_1 = function (ig) {
@@ -282,8 +336,8 @@ var Export = (function () {
                                                 .map(function (e) { return e.resource; });
                                             missingIgResources = foundIgResources
                                                 .filter(function (r) {
-                                                return !transactionBundle.entry.find(function (tbe) {
-                                                    return tbe.resource.resourceType === r.resourceType && tbe.resource.id === r.id;
+                                                return !exportBundle.entry.find(function (tbe) {
+                                                    return tbe.resource && tbe.resource.resourceType === r.resourceType && tbe.resource.id === r.id;
                                                 });
                                             })
                                                 .map(function (e) {
@@ -295,7 +349,7 @@ var Export = (function () {
                                                 };
                                             });
                                             if (missingIgResources.length > 0) {
-                                                transactionBundle.entry = transactionBundle.entry.concat(missingIgResources);
+                                                exportBundle.entry = exportBundle.entry.concat(missingIgResources);
                                                 console.log("Adding " + missingIgResources.length + " resources not already in export for IG " + ig.id);
                                             }
                                         }
@@ -317,24 +371,98 @@ var Export = (function () {
                         _e++;
                         return [3, 2];
                     case 5:
-                        console.log('Cleaning up the ids to make sure they can all be imported into a HAPI server');
-                        fixIds = new fixids_1.FixIds(transactionBundle);
-                        fixIds.fix();
-                        if (this.version === 'r4') {
-                            fixR4 = new fixR4_1.FixR4(transactionBundle);
-                            fixR4.fix();
-                        }
-                        fixUrls = new fixUrls_1.FixUrls(transactionBundle);
-                        fixUrls.execute();
-                        fixSubscriptions = new fixSubscriptions_1.FixSubscriptions(transactionBundle);
-                        fixSubscriptions.execute();
-                        fixMedia = new fixMedia_1.FixMedia(transactionBundle);
-                        fixMedia.execute();
-                        console.log('Done cleaning ids... Saving results to ' + this.outFile);
-                        fs.writeFileSync(this.outFile, JSON.stringify(transactionBundle));
-                        console.log("Created file " + this.outFile + " with a Bundle of " + transactionBundle.total + " entries");
+                        if (!this.includeHistory) return [3, 7];
+                        console.log('Getting history for resources');
+                        return [4, this.getNextHistory(exportBundle, exportBundle.entry.map(function (e) { return e; }))];
+                    case 6:
+                        _f.sent();
+                        console.log('Done exporting history for resources');
+                        _f.label = 7;
+                    case 7:
+                        fs.writeFileSync(this.outFile, JSON.stringify(exportBundle));
+                        console.log("Created file " + this.outFile + " with a Bundle of " + exportBundle.total + " entries");
                         return [2];
                 }
+            });
+        });
+    };
+    Export.prototype.getNextHistory = function (exportBundle, entries) {
+        return __awaiter(this, void 0, void 0, function () {
+            var nextEntries, promises;
+            var _this = this;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (entries.length === 0) {
+                            return [2];
+                        }
+                        nextEntries = entries.slice(0, this.maxHistoryQueue);
+                        entries.splice(0, nextEntries.length);
+                        promises = nextEntries.map(function (e) { return _this.getHistory(exportBundle, e); });
+                        return [4, Promise.all(promises)];
+                    case 1:
+                        _a.sent();
+                        console.log("Getting next " + this.maxHistoryQueue + " resource's history. " + entries.length + " left.");
+                        return [4, this.getNextHistory(exportBundle, entries)];
+                    case 2:
+                        _a.sent();
+                        return [2];
+                }
+            });
+        });
+    };
+    Export.prototype.getHistory = function (exportBundle, exportEntry) {
+        return __awaiter(this, void 0, void 0, function () {
+            var options;
+            return __generator(this, function (_a) {
+                options = {
+                    method: 'GET',
+                    url: this.fhirBase + (this.fhirBase.endsWith('/') ? '' : '/') + exportEntry.request.url + '/_history',
+                    json: true
+                };
+                return [2, new Promise(function (resolve, reject) {
+                        request(options, function (err, response, historyBundle) {
+                            var _a;
+                            if (err || !historyBundle || historyBundle.resourceType !== 'Bundle') {
+                                reject(err || 'No Bundle response from _history request');
+                                return;
+                            }
+                            var replacementHistory = (historyBundle.entry || [])
+                                .filter(function (entry) { return entry.resource; })
+                                .map(function (entry) {
+                                return {
+                                    request: {
+                                        method: 'PUT',
+                                        url: entry.resource.resourceType + "/" + entry.resource.id
+                                    },
+                                    resource: entry.resource
+                                };
+                            });
+                            var integerVersions = replacementHistory.filter(function (y) { return y.resource.meta.versionId.match(/^\d+$/g); }).length === replacementHistory.length;
+                            if (integerVersions) {
+                                replacementHistory = replacementHistory
+                                    .sort(function (a, b) {
+                                    var aVersion = parseInt(a.resource.meta.versionId);
+                                    var bVersion = parseInt(b.resource.meta.versionId);
+                                    return aVersion < bVersion ? -1 : (aVersion > bVersion ? 1 : 0);
+                                });
+                            }
+                            else {
+                                replacementHistory = replacementHistory
+                                    .sort(function (a, b) {
+                                    var aVersion = a.resource.meta.versionId;
+                                    var bVersion = b.resource.meta.versionId;
+                                    return aVersion.localeCompare(bVersion);
+                                });
+                            }
+                            if (replacementHistory.length > 1) {
+                                var exportEntryIndex = exportBundle.entry.indexOf(exportEntry);
+                                (_a = exportBundle.entry).splice.apply(_a, __spreadArrays([exportEntryIndex, 1], replacementHistory));
+                                console.log("Added " + (replacementHistory.length - 1) + " history items for " + exportEntry.resource.resourceType + "/" + exportEntry.resource.id);
+                            }
+                            resolve();
+                        });
+                    })];
             });
         });
     };

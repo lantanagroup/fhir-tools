@@ -9,7 +9,11 @@ class ExportOptions {
     public fhir_base: string;
     public out_file: string;
     public page_size: number;
-    public fhir_version: 'dstu3'|'r4';
+    public history: boolean;
+    public resource_type?: string[];
+    public ig = false;
+    public exclude?: string[];
+    public history_queue = 10;
 }
 
 class ImportOptions {
@@ -38,7 +42,7 @@ export class Main {
                 fixids.save();
             })
             .command('transfer', 'Transfer resources from one server to another', (yargs: any) => {
-                // TODO: No command parameters
+                return yargs;
             }, (argv: any) => {
                 const transfer = new Transfer();
                 transfer.execute();
@@ -59,7 +63,7 @@ export class Main {
                 const importer = new Import(argv.fhir_base);
                 importer.execute(bundle);
             })
-            .command('export <fhir_base> <out_file> [page_size] [fhir_version]', 'Export data from a FHIR server', (yargs: any) => {
+            .command('export <fhir_base> <out_file>', 'Export data from a FHIR server', (yargs: any) => {
                 yargs
                     .positional('fhir_base', {
                         type: 'string',
@@ -75,16 +79,35 @@ export class Main {
                         describe: 'The size of results to return per page',
                         default: 50
                     })
-                    .option('fhir_version', {
-                        alias: 'v',
+                    .option('history', {
+                        alias: 'h',
+                        boolean: true,
+                        description: 'Indicates if _history should be included'
+                    })
+                    .option('resource_type', {
+                        alias: 'r',
+                        array: true,
+                        description: 'Specify one or more resource types to get backup from the FHIR server. If not specified, will default to all resources supported by the server.',
+                        type: 'string'
+                    })
+                    .option('ig', {
+                        boolean: true,
+                        description: 'If specified, indicates that the resources in each ImplementationGuide should be found/retrieved and included in the export.'
+                    })
+                    .option('exclude', {
+                        alias: 'e',
+                        array: true,
                         type: 'string',
-                        describe: 'The version of FHIR that the server supports',
-                        choices: ['dstu3', 'r4'],
-                        default: 'dstu3'
+                        description: 'Resource types that should be excluded from the export (ex: AuditEvent)'
+                    })
+                    .option('history_queue', {
+                        type: 'number',
+                        default: 10,
+                        description: 'The number of requests for history that can be made in parallel'
                     });
-            }, (argv: ExportOptions) => {
-                const exporter = new Export(argv.fhir_base, argv.out_file, argv.page_size, argv.fhir_version);
-                exporter.execute();
+            }, async (argv: ExportOptions) => {
+                const exporter = await Export.newExporter(argv.fhir_base, argv.out_file, argv.page_size, argv.history, argv.resource_type, argv.ig, argv.exclude, argv.history_queue);
+                await exporter.execute();
             })
             .help()
             .argv;

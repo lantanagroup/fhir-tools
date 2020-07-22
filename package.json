@@ -11,6 +11,7 @@
   "dependencies": {
     "q": "^1.5.1",
     "request": "^2.88.0",
+    "semver": "^7.3.2",
     "shortid": "^2.2.15",
     "underscore": "^1.9.1",
     "url-join": "^4.0.0",
@@ -19,6 +20,7 @@
   "devDependencies": {
     "@types/q": "^1.5.1",
     "@types/request": "^2.48.0",
+    "@types/semver": "^7.3.1",
     "@types/shortid": "0.0.29",
     "@types/underscore": "^1.8.9",
     "@types/url-join": "^0.8.2",

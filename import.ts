@@ -103,6 +103,9 @@ export class Import {
             return;
         }
 
+        // Each resource is processed one at a time, intentionally.
+        // The backup may include history, which requires that the bundle be processed in the correct order of entries to re-create the history.
+        // Additionally, the FHIR server (if HAPI) may have issues with the meta.security tags being non-unique when creating multiple resources at the same time.
         for (let i = 0; i < bundle.entry.length; i++) {
             const entry = bundle.entry[i];
 

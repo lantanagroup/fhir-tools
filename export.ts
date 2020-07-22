@@ -1,34 +1,80 @@
 import * as request from 'request';
 import * as urljoin from 'url-join';
 import * as fs from 'fs';
-import {FixIds} from './fixids';
-import {FixR4} from './fixR4';
-import {FixUrls} from "./fixUrls";
-import {FixSubscriptions} from "./fixSubscriptions";
-import {FixMedia} from "./fixMedia";
-import {parseOperationOutcome} from "./helper";
+import * as semver from 'semver';
 
 export class Export {
+    readonly maxHistoryQueue: number = 10;
     readonly fhirBase: string;
     private pageSize: number;
     private outFile: string;
-    private resourceTypes: string[];
+    private resourceTypes: string[] = [];
     private bundles: { [resourceType: string]: any[] } = {};
     private version: 'dstu3'|'r4';
+    private includeHistory = false;
+    private includeIgResources = false;
 
-    constructor(fhirBase: string, outFile: string, pageSize: number, version: 'dstu3'|'r4') {
+    constructor(fhirBase: string, outFile: string, pageSize: number, includeHistory: boolean, includeIgResources: boolean, maxHistoryQueue: number) {
         this.fhirBase = fhirBase;
         this.outFile = outFile;
         this.pageSize = pageSize;
-        this.version = version;
+        this.includeHistory = includeHistory;
+        this.includeIgResources = includeIgResources;
+        this.maxHistoryQueue = maxHistoryQueue;
+    }
 
-        if (version === 'dstu3') {
-            this.resourceTypes = ['Account', 'ActivityDefinition', 'AllergyIntolerance', 'AdverseEvent', 'Appointment', 'AppointmentResponse', 'AuditEvent', 'Basic', 'Binary', 'BodySite', 'Bundle', 'CapabilityStatement', 'CarePlan', 'CareTeam', 'ChargeItem', 'Claim', 'ClaimResponse', 'ClinicalImpression', 'CodeSystem', 'Communication', 'CommunicationRequest', 'CompartmentDefinition', 'Composition', 'ConceptMap', 'Condition', 'Consent', 'Contract', 'Coverage', 'DataElement', 'DetectedIssue', 'Device', 'DeviceComponent', 'DeviceMetric', 'DeviceRequest', 'DeviceUseStatement', 'DiagnosticReport', 'DocumentManifest', 'DocumentReference', 'EligibilityRequest', 'EligibilityResponse', 'Encounter', 'Endpoint', 'EnrollmentRequest', 'EnrollmentResponse', 'EpisodeOfCare', 'ExpansionProfile', 'ExplanationOfBenefit', 'FamilyMemberHistory', 'Flag', 'Goal', 'GraphDefinition', 'Group', 'GuidanceResponse', 'HealthcareService', 'ImagingManifest', 'ImagingStudy', 'Immunization', 'ImmunizationRecommendation', 'ImplementationGuide', 'Library', 'Linkage', 'List', 'Location', 'Measure', 'MeasureReport', 'Media', 'Medication', 'MedicationAdministration', 'MedicationDispense', 'MedicationRequest', 'MedicationStatement', 'MessageDefinition', 'MessageHeader', 'NamingSystem', 'NutritionOrder', 'Observation', 'OperationDefinition', 'OperationOutcome', 'Organization', 'Parameters', 'Patient', 'PaymentNotice', 'PaymentReconciliation', 'Person', 'PlanDefinition', 'Practitioner', 'PractitionerRole', 'Procedure', 'ProcedureRequest', 'ProcessRequest', 'ProcessResponse', 'Provenance', 'Questionnaire', 'QuestionnaireResponse', 'ReferralRequest', 'RelatedPerson', 'RequestGroup', 'ResearchStudy', 'ResearchSubject', 'RiskAssessment', 'Schedule', 'SearchParameter', 'Sequence', 'ServiceDefinition', 'Slot', 'Specimen', 'StructureDefinition', 'StructureMap', 'Subscription', 'Substance', 'SupplyDelivery', 'SupplyRequest', 'Task', 'TestScript', 'TestReport', 'ValueSet', 'VisionPrescription'];
-        } else if (version === 'r4') {
-            this.resourceTypes = ['Account', 'ActivityDefinition', 'AdverseEvent', 'AllergyIntolerance', 'Appointment', 'AppointmentResponse', 'AuditEvent', 'Basic', 'Binary', 'BiologicallyDerivedProduct', 'BodyStructure', 'Bundle', 'CapabilityStatement', 'CarePlan', 'CareTeam', 'CatalogEntry', 'ChargeItem', 'ChargeItemDefinition', 'Claim', 'ClaimResponse', 'ClinicalImpression', 'CodeSystem', 'Communication', 'CommunicationRequest', 'CompartmentDefinition', 'Composition', 'ConceptMap', 'Condition', 'Consent', 'Contract', 'Coverage', 'CoverageEligibilityRequest', 'CoverageEligibilityResponse', 'DetectedIssue', 'Device', 'DeviceDefinition', 'DeviceMetric', 'DeviceRequest', 'DeviceUseStatement', 'DiagnosticReport', 'DocumentManifest', 'DocumentReference', 'EffectEvidenceSynthesis', 'Encounter', 'Endpoint', 'EnrollmentRequest', 'EnrollmentResponse', 'EpisodeOfCare', 'EventDefinition', 'Evidence', 'EvidenceVariable', 'ExampleScenario', 'ExplanationOfBenefit', 'FamilyMemberHistory', 'Flag', 'Goal', 'GraphDefinition', 'Group', 'GuidanceResponse', 'HealthcareService', 'ImagingStudy', 'Immunization', 'ImmunizationEvaluation', 'ImmunizationRecommendation', 'ImplementationGuide', 'InsurancePlan', 'Invoice', 'Library', 'Linkage', 'List', 'Location', 'Measure', 'MeasureReport', 'Media', 'Medication', 'MedicationAdministration', 'MedicationDispense', 'MedicationKnowledge', 'MedicationRequest', 'MedicationStatement', 'MedicinalProduct', 'MedicinalProductAuthorization', 'MedicinalProductContraindication', 'MedicinalProductIndication', 'MedicinalProductIngredient', 'MedicinalProductInteraction', 'MedicinalProductManufactured', 'MedicinalProductPackaged', 'MedicinalProductPharmaceutical', 'MedicinalProductUndesirableEffect', 'MessageDefinition', 'MessageHeader', 'MolecularSequence', 'NamingSystem', 'NutritionOrder', 'Observation', 'ObservationDefinition', 'OperationDefinition', 'OperationOutcome', 'Organization', 'OrganizationAffiliation', 'Parameters', 'Patient', 'PaymentNotice', 'PaymentReconciliation', 'Person', 'PlanDefinition', 'Practitioner', 'PractitionerRole', 'Procedure', 'Provenance', 'Questionnaire', 'QuestionnaireResponse', 'RelatedPerson', 'RequestGroup', 'ResearchDefinition', 'ResearchElementDefinition', 'ResearchStudy', 'ResearchSubject', 'RiskAssessment', 'RiskEvidenceSynthesis', 'Schedule', 'SearchParameter', 'ServiceRequest', 'Slot', 'Specimen', 'SpecimenDefinition', 'StructureDefinition', 'StructureMap', 'Subscription', 'Substance', 'SubstancePolymer', 'SubstanceReferenceInformation', 'SubstanceSpecification', 'SupplyDelivery', 'SupplyRequest', 'Task', 'TerminologyCapabilities', 'TestReport', 'TestScript', 'ValueSet', 'VerificationResult', 'VisionPrescription'];
-        } else {
-            throw new Error('Invalid FHIR version ' + version);
-        }
+    public static async newExporter(fhirBase: string, outFile: string, pageSize: number, includeHistory: boolean, resourceTypes?: string[], includeIgResources = false, excludeResources?: string[], maxHistoryQueue = 10): Promise<Export> {
+        const exporter = new Export(fhirBase, outFile, pageSize, includeHistory, includeIgResources, maxHistoryQueue);
+
+        return new Promise((resolve, reject) => {
+            const metadataOptions = {
+                method: 'GET',
+                url: fhirBase + (fhirBase.endsWith('/') ? '' : '/') + 'metadata',
+                json: true
+            };
+
+            console.log(`Checking /metadata of server to determine version and resources`);
+
+            request(metadataOptions, (err, response, metadata) => {
+                if (err) {
+                    reject('Error retrieving metadata from FHIR server');
+                } else {
+                    if (semver.satisfies(metadata.fhirVersion, '>= 3.2.0 < 4.2.0')) {               // R4
+                        exporter.version = 'r4';
+                    } else if (semver.satisfies(metadata.fhirVersion, '>= 1.1.0 <= 3.0.2')) {       // STU3
+                        exporter.version = 'dstu3';
+                    }
+
+                    if (!resourceTypes || resourceTypes.length === 0) {
+                        (metadata.rest || []).forEach((rest: any) => {
+                            (rest.resource || []).forEach((resource: any) => {
+                                if (exporter.resourceTypes.indexOf(resource.type) < 0) {
+                                    exporter.resourceTypes.push(resource.type);
+                                }
+                            });
+                        });
+                    } else {
+                        console.log('Using resource types specified by CLI options.');
+                        exporter.resourceTypes = resourceTypes;
+                    }
+
+                    if (excludeResources && excludeResources.length > 0) {
+                        console.log(`Excluding ${excludeResources.length} resource types`);
+
+                        exporter.resourceTypes = exporter.resourceTypes
+                                .filter((resourceType: string) => (excludeResources || []).indexOf(resourceType) < 0);
+                    }
+
+                    // Sort the resource types to make it easier to follow in logs
+                    exporter.resourceTypes
+                        .sort((a, b) => a.localeCompare(b));
+
+                    console.log(`Server is ${exporter.version}, found ${exporter.resourceTypes.length} resource types to export.`);
+
+                    resolve(exporter);
+                }
+            });
+        });
     }
 
     private async getIgResources(resources: any[]) {
@@ -156,7 +202,7 @@ export class Export {
     public async execute() {
         await this.processQueue();
 
-        const transactionBundle = {
+        const exportBundle = {
             resourceType: 'Bundle',
             type: 'transaction',
             total: 0,
@@ -169,92 +215,152 @@ export class Export {
             for (let bundle of bundles) {
                 for (let entry of (bundle.entry || [])) {
                     // Add the resource to the transaction bundle
-                    transactionBundle.entry.push({
+                    exportBundle.entry.push({
                         resource: entry.resource,
                         request: {
                             method: 'PUT',
                             url: `${resourceType}/${entry.resource.id}`
                         }
                     });
-                    transactionBundle.total++;
+                    exportBundle.total++;
                 }
             }
         }
 
-        const igs = transactionBundle.entry
-            .filter(tbe => tbe.resource.resourceType === 'ImplementationGuide')
-            .map(tbe => tbe.resource);
-
         // Ensure that all resources referenced by IGs are included in the export if they're on the server
-        for (let ig of igs) {
-            let igResourcesBundle: any;
+        if (this.includeIgResources) {
+            const igs = exportBundle.entry
+                .filter(tbe => tbe.resource.resourceType === 'ImplementationGuide')
+                .map(tbe => tbe.resource);
 
-            console.log(`Searching for missing resources for the IG ${ig.id}`);
+            for (let ig of igs) {
+                let igResourcesBundle: any;
 
-            if (this.version === 'r4' && ig.definition && ig.definition.resource) {
-                const igResourceReferences = ig.definition.resource
-                    .filter((r: any) => r.reference && r.reference.reference)
-                    .map((r: any) => r.reference);
-                igResourcesBundle = await this.getIgResources(igResourceReferences);
-            } else if (this.version === 'dstu3') {
-                let igResourceReferences: any[] = [];
-                (ig.package || []).forEach((p: any) => {
-                    const nextResourceReferences = (p.resource || [])
-                        .filter((r: any) => r.sourceReference && r.sourceReference.reference)
-                        .map((r: any) => r.sourceReference);
-                    igResourceReferences = igResourceReferences.concat(nextResourceReferences);
-                });
-                igResourcesBundle = await this.getIgResources(igResourceReferences);
-            }
+                console.log(`Searching for missing resources for the IG ${ig.id}`);
 
-            if (igResourcesBundle && igResourcesBundle.entry) {
-                const foundIgResources = igResourcesBundle.entry
-                    .filter((e: any) => e.response && e.response.status === '200 OK')
-                    .map((e: any) => e.resource);
-                const missingIgResources = foundIgResources
-                    .filter((r: any) => {
-                        return !transactionBundle.entry.find(tbe => {
-                            return tbe.resource.resourceType === r.resourceType && tbe.resource.id === r.id;
+                if (this.version === 'r4' && ig.definition && ig.definition.resource) {
+                    const igResourceReferences = ig.definition.resource
+                        .filter((r: any) => r.reference && r.reference.reference)
+                        .map((r: any) => r.reference);
+                    igResourcesBundle = await this.getIgResources(igResourceReferences);
+                } else if (this.version === 'dstu3') {
+                    let igResourceReferences: any[] = [];
+                    (ig.package || []).forEach((p: any) => {
+                        const nextResourceReferences = (p.resource || [])
+                            .filter((r: any) => r.sourceReference && r.sourceReference.reference)
+                            .map((r: any) => r.sourceReference);
+                        igResourceReferences = igResourceReferences.concat(nextResourceReferences);
+                    });
+                    igResourcesBundle = await this.getIgResources(igResourceReferences);
+                }
+
+                if (igResourcesBundle && igResourcesBundle.entry) {
+                    const foundIgResources = igResourcesBundle.entry
+                        .filter((e: any) => e.response && e.response.status === '200 OK')
+                        .map((e: any) => e.resource);
+                    const missingIgResources = foundIgResources
+                        .filter((r: any) => {
+                            return !exportBundle.entry.find(tbe => {
+                                return tbe.resource && tbe.resource.resourceType === r.resourceType && tbe.resource.id === r.id;
+                            });
+                        })
+                        .map((e: any) => {
+                            return {
+                                request: {
+                                    method: 'PUT',
+                                    resource: e.resource
+                                }
+                            };
                         });
-                    })
-                    .map((e: any) => {
+
+                    if (missingIgResources.length > 0) {
+                        exportBundle.entry = exportBundle.entry.concat(missingIgResources);
+                        console.log(`Adding ${missingIgResources.length} resources not already in export for IG ${ig.id}`);
+                    }
+                }
+            }
+        }
+
+        if (this.includeHistory) {
+            console.log('Getting history for resources');
+
+            await this.getNextHistory(exportBundle, exportBundle.entry.map(e => e));
+
+            console.log('Done exporting history for resources');
+        }
+
+        fs.writeFileSync(this.outFile, JSON.stringify(exportBundle));
+        console.log(`Created file ${this.outFile} with a Bundle of ${exportBundle.total} entries`);
+    }
+
+    private async getNextHistory(exportBundle: any, entries: any[]) {
+        if (entries.length === 0) {
+            return;
+        }
+
+        const nextEntries = entries.slice(0, this.maxHistoryQueue);
+        entries.splice(0, nextEntries.length);
+        const promises = nextEntries.map(e => this.getHistory(exportBundle, e));
+        await Promise.all(promises);
+
+        console.log(`Getting next ${this.maxHistoryQueue} resource's history. ${entries.length} left.`);
+        await this.getNextHistory(exportBundle, entries);
+    }
+
+    private async getHistory(exportBundle: any, exportEntry: any) {
+        const options = {
+            method: 'GET',
+            url: this.fhirBase + (this.fhirBase.endsWith('/') ? '' : '/') + exportEntry.request.url + '/_history',
+            json: true
+        };
+
+        return new Promise((resolve, reject) => {
+            request(options, (err, response, historyBundle) => {
+                if (err || !historyBundle || historyBundle.resourceType !== 'Bundle') {
+                    reject(err || 'No Bundle response from _history request');
+                    return;
+                }
+
+                let replacementHistory = (historyBundle.entry || [])
+                    .filter((entry: any) => entry.resource)
+                    .map((entry: any) => {
                         return {
                             request: {
                                 method: 'PUT',
-                                resource: e.resource
-                            }
+                                url: `${entry.resource.resourceType}/${entry.resource.id}`
+                            },
+                            resource: entry.resource
                         };
                     });
 
-                if (missingIgResources.length > 0) {
-                    transactionBundle.entry = transactionBundle.entry.concat(missingIgResources);
-                    console.log(`Adding ${missingIgResources.length} resources not already in export for IG ${ig.id}`);
+                const integerVersions = replacementHistory.filter(y => y.resource.meta.versionId.match(/^\d+$/g)).length === replacementHistory.length;
+
+                // If all versions are integer, sort using integer algorithm, otherwise sort using localeCompare on string
+                if (integerVersions) {
+                    replacementHistory = replacementHistory
+                        .sort((a: any, b: any) => {
+                            const aVersion = parseInt(a.resource.meta.versionId);
+                            const bVersion = parseInt(b.resource.meta.versionId);
+                            return aVersion < bVersion ? -1 : (aVersion > bVersion ? 1 : 0);
+                        });
+                } else {
+                    replacementHistory = replacementHistory
+                        .sort((a: any, b: any) => {
+                            const aVersion = a.resource.meta.versionId;
+                            const bVersion = b.resource.meta.versionId;
+                            return aVersion.localeCompare(bVersion);
+                        });
                 }
-            }
-        }
 
-        console.log('Cleaning up the ids to make sure they can all be imported into a HAPI server');
+                if (replacementHistory.length > 1) {
+                    const exportEntryIndex = exportBundle.entry.indexOf(exportEntry);
+                    exportBundle.entry.splice(exportEntryIndex, 1, ...replacementHistory);
 
-        const fixIds = new FixIds(transactionBundle);
-        fixIds.fix();
+                    console.log(`Added ${replacementHistory.length - 1} history items for ${exportEntry.resource.resourceType}/${exportEntry.resource.id}`);
+                }
 
-        if (this.version === 'r4') {
-            const fixR4 = new FixR4(transactionBundle);
-            fixR4.fix();
-        }
-
-        const fixUrls = new FixUrls(transactionBundle);
-        fixUrls.execute();
-
-        const fixSubscriptions = new FixSubscriptions(transactionBundle);
-        fixSubscriptions.execute();
-
-        const fixMedia = new FixMedia(transactionBundle);
-        fixMedia.execute();
-
-        console.log('Done cleaning ids... Saving results to ' + this.outFile);
-
-        fs.writeFileSync(this.outFile, JSON.stringify(transactionBundle));
-        console.log(`Created file ${this.outFile} with a Bundle of ${transactionBundle.total} entries`);
+                resolve();
+            });
+        });
     }
 }

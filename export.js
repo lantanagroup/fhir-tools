@@ -49,6 +49,8 @@ var urljoin = require("url-join");
 var fs = require("fs");
 var semver = require("semver");
 var fhir_1 = require("fhir/fhir");
+var path = require("path");
+var parseConformance_1 = require("fhir/parseConformance");
 var ExportOptions = (function () {
     function ExportOptions() {
         this.ig = false;
@@ -87,9 +89,6 @@ var Export = (function () {
                                 }
                                 else if (semver.satisfies(metadata.fhirVersion, '>= 1.1.0 <= 3.0.2')) {
                                     exporter.version = 'dstu3';
-                                }
-                                if (exporter.version === 'dstu3' && options.xml) {
-                                    throw new Error('Only R4 servers support the "-xml" flag.');
                                 }
                                 if (!options.resource_type || options.resource_type.length === 0) {
                                     (metadata.rest || []).forEach(function (rest) {
@@ -279,7 +278,7 @@ var Export = (function () {
     };
     Export.prototype.execute = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var exportBundle, _i, _a, resourceType, bundles, _b, bundles_1, bundle, _c, _d, entry, igs, _loop_1, this_1, _e, igs_1, ig, outputContent;
+            var exportBundle, _i, _a, resourceType, bundles, _b, bundles_1, bundle, _c, _d, entry, igs, _loop_1, this_1, _e, igs_1, ig, outputContent, fhir, parser, codeSystem3166, profilesResources, profilesTypes, valueSets;
             return __generator(this, function (_f) {
                 switch (_f.label) {
                     case 0: return [4, this.processQueue()];
@@ -392,7 +391,23 @@ var Export = (function () {
                         _f.label = 7;
                     case 7:
                         if (this.options.xml) {
-                            outputContent = new fhir_1.Fhir().objToXml(exportBundle);
+                            fhir = void 0;
+                            if (this.version === 'dstu3') {
+                                parser = new parseConformance_1.ParseConformance();
+                                codeSystem3166 = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/codesystem-iso3166.json')).toString());
+                                profilesResources = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/profiles-resources.json')).toString());
+                                profilesTypes = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/profiles-types.json')).toString());
+                                valueSets = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/valuesets.json')).toString());
+                                parser.loadCodeSystem(codeSystem3166);
+                                parser.parseBundle(profilesResources);
+                                parser.parseBundle(profilesTypes);
+                                parser.parseBundle(valueSets);
+                                fhir = new fhir_1.Fhir(parser);
+                            }
+                            else {
+                                fhir = new fhir_1.Fhir();
+                            }
+                            outputContent = fhir.objToXml(exportBundle);
                         }
                         else {
                             outputContent = JSON.stringify(exportBundle);

@@ -3,6 +3,8 @@ import * as urljoin from 'url-join';
 import * as fs from 'fs';
 import * as semver from 'semver';
 import {Fhir} from "fhir/fhir";
+import * as path from "path";
+import {ParseConformance} from "fhir/parseConformance";
 
 export class ExportOptions {
     public fhir_base: string;
@@ -47,10 +49,6 @@ export class Export {
                         exporter.version = 'r4';
                     } else if (semver.satisfies(metadata.fhirVersion, '>= 1.1.0 <= 3.0.2')) {       // STU3
                         exporter.version = 'dstu3';
-                    }
-
-                    if (exporter.version === 'dstu3' && options.xml) {
-                        throw new Error('Only R4 servers support the "-xml" flag.');
                     }
 
                     if (!options.resource_type || options.resource_type.length === 0) {
@@ -309,7 +307,26 @@ export class Export {
         let outputContent: string;
 
         if (this.options.xml) {
-            outputContent = new Fhir().objToXml(exportBundle);
+            let fhir: Fhir;
+
+            if (this.version === 'dstu3') {
+                const parser = new ParseConformance();
+
+                const codeSystem3166 = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/codesystem-iso3166.json')).toString());
+                const profilesResources = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/profiles-resources.json')).toString());
+                const profilesTypes = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/profiles-types.json')).toString());
+                const valueSets = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/valuesets.json')).toString());
+                parser.loadCodeSystem(codeSystem3166);
+                parser.parseBundle(profilesResources);
+                parser.parseBundle(profilesTypes);
+                parser.parseBundle(valueSets);
+
+                fhir = new Fhir(parser);
+            } else {
+                fhir = new Fhir();
+            }
+
+            outputContent = fhir.objToXml(exportBundle);
         } else {
             outputContent = JSON.stringify(exportBundle);
         }

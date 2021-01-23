@@ -37,6 +37,7 @@ Options:
 | --ig | If specified, indicates that the resources in each ImplementationGuide should be found/retrieved and included in the export. | boolean/flag |
 | --exclude, -e | Resource types that should be excluded from the export (ex: AuditEvent) | string. can repeat. |
 | --history_queue | The number of requests for history that can be made in parallel. | number (default: 10) |
+| --xml | Indicates if the output should be formatted as XML, instead of the default JSON |
 
 ## Import
 

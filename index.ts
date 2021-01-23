@@ -1,20 +1,9 @@
 import * as yargs from 'yargs';
 import * as fs from 'fs';
-import {Export} from './export';
+import {Export, ExportOptions} from './export';
 import {Import} from './import';
 import {FixIds} from './fixids';
 import {Transfer} from "./transfer";
-
-class ExportOptions {
-    public fhir_base: string;
-    public out_file: string;
-    public page_size: number;
-    public history: boolean;
-    public resource_type?: string[];
-    public ig = false;
-    public exclude?: string[];
-    public history_queue = 10;
-}
 
 class ImportOptions {
     public fhir_base: string;
@@ -104,9 +93,13 @@ export class Main {
                         type: 'number',
                         default: 10,
                         description: 'The number of requests for history that can be made in parallel'
+                    })
+                    .option('xml', {
+                        boolean: true,
+                        description: 'Outputs as XML instead of the default JSON format'
                     });
             }, async (argv: ExportOptions) => {
-                const exporter = await Export.newExporter(argv.fhir_base, argv.out_file, argv.page_size, argv.history, argv.resource_type, argv.ig, argv.exclude, argv.history_queue);
+                const exporter = await Export.newExporter(argv);
                 await exporter.execute();
             })
             .help()

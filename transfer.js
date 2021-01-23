@@ -36,6 +36,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 exports.__esModule = true;
+exports.Transfer = void 0;
 var request = require("request");
 var Transfer = (function () {
     function Transfer() {

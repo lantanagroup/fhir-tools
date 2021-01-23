@@ -36,19 +36,13 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 exports.__esModule = true;
+exports.Main = void 0;
 var yargs = require("yargs");
 var fs = require("fs");
 var export_1 = require("./export");
 var import_1 = require("./import");
 var fixids_1 = require("./fixids");
 var transfer_1 = require("./transfer");
-var ExportOptions = (function () {
-    function ExportOptions() {
-        this.ig = false;
-        this.history_queue = 10;
-    }
-    return ExportOptions;
-}());
 var ImportOptions = (function () {
     function ImportOptions() {
     }
@@ -137,12 +131,16 @@ var Main = (function () {
                 type: 'number',
                 "default": 10,
                 description: 'The number of requests for history that can be made in parallel'
+            })
+                .option('xml', {
+                boolean: true,
+                description: 'Outputs as XML instead of the default JSON format'
             });
         }, function (argv) { return __awaiter(_this, void 0, void 0, function () {
             var exporter;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4, export_1.Export.newExporter(argv.fhir_base, argv.out_file, argv.page_size, argv.history, argv.resource_type, argv.ig, argv.exclude, argv.history_queue)];
+                    case 0: return [4, export_1.Export.newExporter(argv)];
                     case 1:
                         exporter = _a.sent();
                         return [4, exporter.execute()];

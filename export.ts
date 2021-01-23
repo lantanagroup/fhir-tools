@@ -2,34 +2,38 @@ import * as request from 'request';
 import * as urljoin from 'url-join';
 import * as fs from 'fs';
 import * as semver from 'semver';
+import {Fhir} from "fhir/fhir";
+
+export class ExportOptions {
+    public fhir_base: string;
+    public out_file: string;
+    public page_size: number;
+    public history: boolean;
+    public resource_type?: string[];
+    public ig = false;
+    public exclude?: string[];
+    public history_queue = 10;
+    public xml = false;
+}
 
 export class Export {
-    readonly maxHistoryQueue: number = 10;
-    readonly fhirBase: string;
-    private pageSize: number;
-    private outFile: string;
+    readonly options: ExportOptions;
+    readonly maxHistoryQueue: number = 10
     private resourceTypes: string[] = [];
     private bundles: { [resourceType: string]: any[] } = {};
     private version: 'dstu3'|'r4';
-    private includeHistory = false;
-    private includeIgResources = false;
 
-    constructor(fhirBase: string, outFile: string, pageSize: number, includeHistory: boolean, includeIgResources: boolean, maxHistoryQueue: number) {
-        this.fhirBase = fhirBase;
-        this.outFile = outFile;
-        this.pageSize = pageSize;
-        this.includeHistory = includeHistory;
-        this.includeIgResources = includeIgResources;
-        this.maxHistoryQueue = maxHistoryQueue;
+    constructor(options: ExportOptions) {
+        this.options = options;
     }
 
-    public static async newExporter(fhirBase: string, outFile: string, pageSize: number, includeHistory: boolean, resourceTypes?: string[], includeIgResources = false, excludeResources?: string[], maxHistoryQueue = 10): Promise<Export> {
-        const exporter = new Export(fhirBase, outFile, pageSize, includeHistory, includeIgResources, maxHistoryQueue);
+    public static async newExporter(options: ExportOptions): Promise<Export> {
+        const exporter = new Export(options);
 
         return new Promise((resolve, reject) => {
             const metadataOptions = {
                 method: 'GET',
-                url: fhirBase + (fhirBase.endsWith('/') ? '' : '/') + 'metadata',
+                url: options.fhir_base + (options.fhir_base.endsWith('/') ? '' : '/') + 'metadata',
                 json: true
             };
 
@@ -45,7 +49,11 @@ export class Export {
                         exporter.version = 'dstu3';
                     }
 
-                    if (!resourceTypes || resourceTypes.length === 0) {
+                    if (exporter.version === 'dstu3' && options.xml) {
+                        throw new Error('Only R4 servers support the "-xml" flag.');
+                    }
+
+                    if (!options.resource_type || options.resource_type.length === 0) {
                         (metadata.rest || []).forEach((rest: any) => {
                             (rest.resource || []).forEach((resource: any) => {
                                 if (exporter.resourceTypes.indexOf(resource.type) < 0) {
@@ -55,14 +63,14 @@ export class Export {
                         });
                     } else {
                         console.log('Using resource types specified by CLI options.');
-                        exporter.resourceTypes = resourceTypes;
+                        exporter.resourceTypes = options.resource_type;
                     }
 
-                    if (excludeResources && excludeResources.length > 0) {
-                        console.log(`Excluding ${excludeResources.length} resource types`);
+                    if (options.exclude && options.exclude.length > 0) {
+                        console.log(`Excluding ${options.exclude.length} resource types`);
 
                         exporter.resourceTypes = exporter.resourceTypes
-                                .filter((resourceType: string) => (excludeResources || []).indexOf(resourceType) < 0);
+                                .filter((resourceType: string) => (options.exclude || []).indexOf(resourceType) < 0);
                     }
 
                     // Sort the resource types to make it easier to follow in logs
@@ -92,7 +100,7 @@ export class Export {
         };
 
         return new Promise((resolve, reject) => {
-            request(this.fhirBase, { method: 'POST', json: true, body: body }, (err, response, body) => {
+            request(this.options.fhir_base, { method: 'POST', json: true, body: body }, (err, response, body) => {
                 if (err) {
                     reject(err);
                 } else {
@@ -103,12 +111,12 @@ export class Export {
     }
 
     private async getResource(resourceType?: string, id?: string) {
-        let url = this.fhirBase;
+        let url = this.options.fhir_base;
 
         if (resourceType && id) {
-            url += (this.fhirBase.endsWith('/') ? '' : '/') + resourceType + '/' + id;
+            url += (this.options.fhir_base.endsWith('/') ? '' : '/') + resourceType + '/' + id;
         } else if (resourceType) {
-            url += (this.fhirBase.endsWith('/') ? '' : '/') + resourceType;
+            url += (this.options.fhir_base.endsWith('/') ? '' : '/') + resourceType;
         }
 
         return new Promise((resolve, reject) => {
@@ -127,7 +135,8 @@ export class Export {
             const options = {
                 json: true,
                 headers: {
-                    'Cache-Control': 'no-cache'
+                    'Cache-Control': 'no-cache',
+                    'Content-Type': 'application/json'
                 }
             };
 
@@ -146,6 +155,10 @@ export class Export {
         });
     }
 
+    private static getProtocol(url: string) {
+        return url.substring(0, url.indexOf('://'));
+    }
+
     private async getBundle(nextUrl: string, resourceType: string) {
         if (!this.bundles[resourceType]) {
             this.bundles[resourceType] = [];
@@ -162,10 +175,14 @@ export class Export {
             console.log(`No entries found for ${resourceType}`);
         }
 
-        const nextNextUrl = (body.link || []).find((link: any) => link.relation === 'next');
+        const nextLink = (body.link || []).find((link: any) => link.relation === 'next');
 
-        if (nextNextUrl && nextNextUrl.url) {
-            await this.getBundle(nextNextUrl.url, resourceType);
+        if (nextLink && nextLink.url) {
+            if (Export.getProtocol(nextUrl) !== Export.getProtocol(nextLink.url)) {
+                nextLink.url = Export.getProtocol(nextUrl) + nextLink.url.substring(Export.getProtocol(nextLink.url).length);
+            }
+
+            await this.getBundle(nextLink.url, resourceType);
         }
     }
 
@@ -175,8 +192,8 @@ export class Export {
         }
 
         const resourceType = this.resourceTypes.pop();
-        let nextUrl = urljoin(this.fhirBase, resourceType);
-        nextUrl += '?_count=' + this.pageSize.toString();
+        let nextUrl = urljoin(this.options.fhir_base, resourceType);
+        nextUrl += '?_count=' + this.options.page_size.toString();
 
         console.log(`----------------------------\r\nStarting retrieve for ${resourceType}`);
 
@@ -228,7 +245,7 @@ export class Export {
         }
 
         // Ensure that all resources referenced by IGs are included in the export if they're on the server
-        if (this.includeIgResources) {
+        if (this.options.ig) {
             const igs = exportBundle.entry
                 .filter(tbe => tbe.resource.resourceType === 'ImplementationGuide')
                 .map(tbe => tbe.resource);
@@ -281,7 +298,7 @@ export class Export {
             }
         }
 
-        if (this.includeHistory) {
+        if (this.options.history) {
             console.log('Getting history for resources');
 
             await this.getNextHistory(exportBundle, exportBundle.entry.map(e => e));
@@ -289,8 +306,16 @@ export class Export {
             console.log('Done exporting history for resources');
         }
 
-        fs.writeFileSync(this.outFile, JSON.stringify(exportBundle));
-        console.log(`Created file ${this.outFile} with a Bundle of ${exportBundle.total} entries`);
+        let outputContent: string;
+
+        if (this.options.xml) {
+            outputContent = new Fhir().objToXml(exportBundle);
+        } else {
+            outputContent = JSON.stringify(exportBundle);
+        }
+
+        fs.writeFileSync(this.options.out_file, outputContent);
+        console.log(`Created file ${this.options.out_file} with a Bundle of ${exportBundle.total} entries`);
     }
 
     private async getNextHistory(exportBundle: any, entries: any[]) {
@@ -310,7 +335,7 @@ export class Export {
     private async getHistory(exportBundle: any, exportEntry: any) {
         const options = {
             method: 'GET',
-            url: this.fhirBase + (this.fhirBase.endsWith('/') ? '' : '/') + exportEntry.request.url + '/_history',
+            url: this.options.fhir_base + (this.options.fhir_base.endsWith('/') ? '' : '/') + exportEntry.request.url + '/_history',
             json: true
         };
 
@@ -333,7 +358,7 @@ export class Export {
                         };
                     });
 
-                const integerVersions = replacementHistory.filter(y => y.resource.meta.versionId.match(/^\d+$/g)).length === replacementHistory.length;
+                const integerVersions = replacementHistory.filter((y: any) => y.resource.meta.versionId.match(/^\d+$/g)).length === replacementHistory.length;
 
                 // If all versions are integer, sort using integer algorithm, otherwise sort using localeCompare on string
                 if (integerVersions) {

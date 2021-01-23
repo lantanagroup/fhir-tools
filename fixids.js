@@ -1,5 +1,6 @@
 "use strict";
 exports.__esModule = true;
+exports.FixIds = void 0;
 var fs = require("fs");
 var _ = require("underscore");
 var IdModel = (function () {

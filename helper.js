@@ -1,5 +1,6 @@
 "use strict";
 exports.__esModule = true;
+exports.parseOperationOutcome = void 0;
 function parseOperationOutcome(oo) {
     if (oo && oo.resourceType === 'OperationOutcome') {
         if (oo.issue && oo.issue.length > 0) {

@@ -9,6 +9,7 @@
   "author": "Sean McIlvenna <sean.mcilvenna@lantanagroup.com>",
   "license": "ISC",
   "dependencies": {
+    "fhir": "^4.7.9",
     "q": "^1.5.1",
     "request": "^2.88.0",
     "semver": "^7.3.2",

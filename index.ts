@@ -4,6 +4,7 @@ import {Export, ExportOptions} from './export';
 import {Import} from './import';
 import {FixIds} from './fixids';
 import {Transfer} from "./transfer";
+import {Compare} from "./compare";
 
 class ImportOptions {
     public fhir_base: string;
@@ -30,10 +31,29 @@ export class Main {
                 fixids.fix();
                 fixids.save();
             })
-            .command('transfer', 'Transfer resources from one server to another', (yargs: any) => {
-                return yargs;
+            .command('transfer <fhir1_base> <fhir2_base>', 'Transfer resources from one server to another', (yargs: any) => {
+                yargs
+                    .positional('fhir1_base', {
+                        type: 'string',
+                        describe: 'The FHIR server base of the first FHIR server (where resources are retrieved)'
+                    })
+                    .positional('fhir2_base', {
+                        type: 'string',
+                        describe: 'The FHIR server base of the second FHIR server (where resources are stored)'
+                    })
+                    .option('page_size', {
+                        alias: 's',
+                        type: 'number',
+                        describe: 'The size of results to return per page',
+                        default: 50
+                    })
+                    .option('history', {
+                        alias: 'h',
+                        type: 'boolean',
+                        describe: 'Whether ot include the history of each resource'
+                    });
             }, (argv: any) => {
-                const transfer = new Transfer();
+                const transfer = new Transfer(argv);
                 transfer.execute();
             })
             .command('import <fhir_base> <in_file>', 'Import data to a FHIR server', (yargs: any) => {
@@ -51,6 +71,26 @@ export class Main {
                 const bundle = JSON.parse(importContent);
                 const importer = new Import(argv.fhir_base);
                 importer.execute(bundle);
+            })
+            .command('compare <fhir1_base> <fhir2_base>', 'Compare the resources from one FHIR server to another', (yargs: any) => {
+                yargs
+                    .positional('fhir1_base', {
+                        type: 'string',
+                        describe: 'The FHIR server base of the first FHIR server'
+                    })
+                    .positional('fhir2_base', {
+                        type: 'string',
+                        describe: 'The FHIR server base of the second FHIR server'
+                    })
+                    .option('page_size', {
+                        alias: 's',
+                        type: 'number',
+                        describe: 'The size of results to return per page',
+                        default: 50
+                    });
+            }, (argv: any) => {
+                const compare = new Compare(argv);
+                compare.execute();
             })
             .command('export <fhir_base> <out_file>', 'Export data from a FHIR server', (yargs: any) => {
                 yargs

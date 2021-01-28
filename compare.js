@@ -36,82 +36,59 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 exports.__esModule = true;
-exports.Transfer = void 0;
-var request = require("request");
+exports.Compare = void 0;
 var export_1 = require("./export");
-var Transfer = (function () {
-    function Transfer(options) {
+var Compare = (function () {
+    function Compare(options) {
         this.options = options;
     }
-    Transfer.prototype.updateResource = function (fhirBase, resource) {
+    Compare.prototype.execute = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var url;
-            return __generator(this, function (_a) {
-                url = fhirBase + (fhirBase.endsWith('/') ? '' : '/') + resource.resourceType + '/' + resource.id;
-                return [2, new Promise(function (resolve, reject) {
-                        request({ url: url, method: 'PUT', body: resource, json: true }, function (err, response, body) {
-                            if (err) {
-                                reject(err);
-                            }
-                            else {
-                                resolve(body);
-                            }
-                        });
-                    })];
-            });
-        });
-    };
-    Transfer.prototype.updateNext = function () {
-        return __awaiter(this, void 0, void 0, function () {
-            var nextEntry, nextResource;
+            var export1, export2, issueCount;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (this.exportedBundle.entry.length <= 0) {
-                            return [2];
-                        }
-                        nextEntry = this.exportedBundle.entry.pop();
-                        nextResource = nextEntry.resource;
-                        console.log("Putting " + nextResource.resourceType + "/" + nextResource.id + " onto the destination FHIR server. " + this.exportedBundle.entry.length + " left...");
-                        return [4, this.updateResource(this.options.fhir2_base, nextResource)];
-                    case 1:
-                        _a.sent();
-                        return [4, this.updateNext()];
-                    case 2:
-                        _a.sent();
-                        return [2];
-                }
-            });
-        });
-    };
-    Transfer.prototype.execute = function () {
-        return __awaiter(this, void 0, void 0, function () {
-            var exporter;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        console.log('Retrieving resources from the source FHIR server');
+                        console.log("Gathering resource from first FHIR server: " + this.options.fhir1_base);
                         return [4, export_1.Export.newExporter({
                                 fhir_base: this.options.fhir1_base,
                                 page_size: this.options.page_size,
-                                history: this.options.history
+                                resource_type: ['StructureDefinition']
                             })];
                     case 1:
-                        exporter = _a.sent();
-                        return [4, exporter.execute(false)];
+                        export1 = _a.sent();
+                        return [4, export1.execute(false)];
                     case 2:
                         _a.sent();
-                        console.log('Done retrieving resources');
-                        this.exportedBundle = exporter.exportBundle;
-                        return [4, this.updateNext()];
+                        console.log("Gathering resource from second FHIR server: " + this.options.fhir2_base);
+                        return [4, export_1.Export.newExporter({
+                                fhir_base: this.options.fhir2_base,
+                                page_size: this.options.page_size
+                            })];
                     case 3:
+                        export2 = _a.sent();
+                        return [4, export2.execute(false)];
+                    case 4:
                         _a.sent();
+                        issueCount = 0;
+                        export1.exportBundle.entry.forEach(function (e1) {
+                            var found = export2.exportBundle.entry.find(function (e2) { return e2.resource.resourceType === e1.resource.resourceType && e2.resource.id.toLowerCase() === e1.resource.id.toLowerCase(); });
+                            if (!found) {
+                                console.log(e1.resource.resourceType + "/" + e1.resource.id + " is missing from the second FHIR server");
+                                issueCount++;
+                            }
+                        });
+                        if (issueCount > 0) {
+                            console.log("Found " + issueCount + " issues when comparing.");
+                        }
+                        else {
+                            console.log('Did not find any issues during comparison.');
+                        }
                         return [2];
                 }
             });
         });
     };
-    return Transfer;
+    return Compare;
 }());
-exports.Transfer = Transfer;
-//# sourceMappingURL=transfer.js.map
+exports.Compare = Compare;
+//# sourceMappingURL=compare.js.map

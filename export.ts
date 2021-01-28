@@ -5,25 +5,27 @@ import * as semver from 'semver';
 import {Fhir} from "fhir/fhir";
 import * as path from "path";
 import {ParseConformance} from "fhir/parseConformance";
+import {IBundle} from "./fhir/bundle";
 
 export class ExportOptions {
     public fhir_base: string;
-    public out_file: string;
+    public out_file?: string;
     public page_size: number;
-    public history: boolean;
+    public history?: boolean;
     public resource_type?: string[];
-    public ig = false;
+    public ig? = false;
     public exclude?: string[];
-    public history_queue = 10;
-    public xml = false;
+    public history_queue? = 10;
+    public xml? = false;
 }
 
 export class Export {
     readonly options: ExportOptions;
     readonly maxHistoryQueue: number = 10
     private resourceTypes: string[] = [];
-    private bundles: { [resourceType: string]: any[] } = {};
+    private bundles: { [resourceType: string]: IBundle[] } = {};
     private version: 'dstu3'|'r4';
+    public exportBundle: IBundle;
 
     constructor(options: ExportOptions) {
         this.options = options;
@@ -198,7 +200,7 @@ export class Export {
         await this.getBundle(nextUrl, resourceType);
         await this.processQueue();
 
-        if (this.bundles[resourceType] && this.bundles[resourceType].length > 0) {
+        if (this.bundles[resourceType] && this.bundles[resourceType].length > 0 && this.bundles[resourceType][0].hasOwnProperty('total')) {
             let totalEntries = this.bundles[resourceType]
                 .reduce((previous, current) => {
                     for (let entry of current.entry || []) {
@@ -214,14 +216,14 @@ export class Export {
         }
     }
 
-    public async execute() {
+    public async execute(shouldOutput = true) {
         await this.processQueue();
 
-        const exportBundle = {
+        this.exportBundle = {
             resourceType: 'Bundle',
             type: 'transaction',
             total: 0,
-            entry: <any[]> []
+            entry: []
         };
 
         for (let resourceType of Object.keys(this.bundles)) {
@@ -230,21 +232,21 @@ export class Export {
             for (let bundle of bundles) {
                 for (let entry of (bundle.entry || [])) {
                     // Add the resource to the transaction bundle
-                    exportBundle.entry.push({
+                    this.exportBundle.entry.push({
                         resource: entry.resource,
                         request: {
                             method: 'PUT',
                             url: `${resourceType}/${entry.resource.id}`
                         }
                     });
-                    exportBundle.total++;
+                    this.exportBundle.total++;
                 }
             }
         }
 
         // Ensure that all resources referenced by IGs are included in the export if they're on the server
         if (this.options.ig) {
-            const igs = exportBundle.entry
+            const igs = this.exportBundle.entry
                 .filter(tbe => tbe.resource.resourceType === 'ImplementationGuide')
                 .map(tbe => tbe.resource);
 
@@ -275,7 +277,7 @@ export class Export {
                         .map((e: any) => e.resource);
                     const missingIgResources = foundIgResources
                         .filter((r: any) => {
-                            return !exportBundle.entry.find(tbe => {
+                            return !this.exportBundle.entry.find(tbe => {
                                 return tbe.resource && tbe.resource.resourceType === r.resourceType && tbe.resource.id === r.id;
                             });
                         })
@@ -289,7 +291,7 @@ export class Export {
                         });
 
                     if (missingIgResources.length > 0) {
-                        exportBundle.entry = exportBundle.entry.concat(missingIgResources);
+                        this.exportBundle.entry = this.exportBundle.entry.concat(missingIgResources);
                         console.log(`Adding ${missingIgResources.length} resources not already in export for IG ${ig.id}`);
                     }
                 }
@@ -299,7 +301,7 @@ export class Export {
         if (this.options.history) {
             console.log('Getting history for resources');
 
-            await this.getNextHistory(exportBundle, exportBundle.entry.map(e => e));
+            await this.getNextHistory(this.exportBundle, this.exportBundle.entry.map(e => e));
 
             console.log('Done exporting history for resources');
         }
@@ -326,13 +328,15 @@ export class Export {
                 fhir = new Fhir();
             }
 
-            outputContent = fhir.objToXml(exportBundle);
+            outputContent = fhir.objToXml(this.exportBundle);
         } else {
-            outputContent = JSON.stringify(exportBundle);
+            outputContent = JSON.stringify(this.exportBundle);
         }
 
-        fs.writeFileSync(this.options.out_file, outputContent);
-        console.log(`Created file ${this.options.out_file} with a Bundle of ${exportBundle.total} entries`);
+        if (shouldOutput) {
+            fs.writeFileSync(this.options.out_file, outputContent);
+            console.log(`Created file ${this.options.out_file} with a Bundle of ${this.exportBundle.total} entries`);
+        }
     }
 
     private async getNextHistory(exportBundle: any, entries: any[]) {
@@ -356,7 +360,7 @@ export class Export {
             json: true
         };
 
-        return new Promise((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
             request(options, (err, response, historyBundle) => {
                 if (err || !historyBundle || historyBundle.resourceType !== 'Bundle') {
                     reject(err || 'No Bundle response from _history request');

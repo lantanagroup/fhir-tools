@@ -257,7 +257,7 @@ var Export = (function () {
                         return [4, this.processQueue()];
                     case 2:
                         _a.sent();
-                        if (this.bundles[resourceType] && this.bundles[resourceType].length > 0) {
+                        if (this.bundles[resourceType] && this.bundles[resourceType].length > 0 && this.bundles[resourceType][0].hasOwnProperty('total')) {
                             totalEntries = this.bundles[resourceType]
                                 .reduce(function (previous, current) {
                                 for (var _i = 0, _a = current.entry || []; _i < _a.length; _i++) {
@@ -276,15 +276,17 @@ var Export = (function () {
             });
         });
     };
-    Export.prototype.execute = function () {
+    Export.prototype.execute = function (shouldOutput) {
+        if (shouldOutput === void 0) { shouldOutput = true; }
         return __awaiter(this, void 0, void 0, function () {
-            var exportBundle, _i, _a, resourceType, bundles, _b, bundles_1, bundle, _c, _d, entry, igs, _loop_1, this_1, _e, igs_1, ig, outputContent, fhir, parser, codeSystem3166, profilesResources, profilesTypes, valueSets;
+            var _i, _a, resourceType, bundles, _b, bundles_1, bundle, _c, _d, entry, igs, _loop_1, this_1, _e, igs_1, ig, outputContent, fhir, parser, codeSystem3166, profilesResources, profilesTypes, valueSets;
+            var _this = this;
             return __generator(this, function (_f) {
                 switch (_f.label) {
                     case 0: return [4, this.processQueue()];
                     case 1:
                         _f.sent();
-                        exportBundle = {
+                        this.exportBundle = {
                             resourceType: 'Bundle',
                             type: 'transaction',
                             total: 0,
@@ -297,19 +299,19 @@ var Export = (function () {
                                 bundle = bundles_1[_b];
                                 for (_c = 0, _d = (bundle.entry || []); _c < _d.length; _c++) {
                                     entry = _d[_c];
-                                    exportBundle.entry.push({
+                                    this.exportBundle.entry.push({
                                         resource: entry.resource,
                                         request: {
                                             method: 'PUT',
                                             url: resourceType + "/" + entry.resource.id
                                         }
                                     });
-                                    exportBundle.total++;
+                                    this.exportBundle.total++;
                                 }
                             }
                         }
                         if (!this.options.ig) return [3, 5];
-                        igs = exportBundle.entry
+                        igs = this.exportBundle.entry
                             .filter(function (tbe) { return tbe.resource.resourceType === 'ImplementationGuide'; })
                             .map(function (tbe) { return tbe.resource; });
                         _loop_1 = function (ig) {
@@ -347,7 +349,7 @@ var Export = (function () {
                                                 .map(function (e) { return e.resource; });
                                             missingIgResources = foundIgResources
                                                 .filter(function (r) {
-                                                return !exportBundle.entry.find(function (tbe) {
+                                                return !_this.exportBundle.entry.find(function (tbe) {
                                                     return tbe.resource && tbe.resource.resourceType === r.resourceType && tbe.resource.id === r.id;
                                                 });
                                             })
@@ -360,7 +362,7 @@ var Export = (function () {
                                                 };
                                             });
                                             if (missingIgResources.length > 0) {
-                                                exportBundle.entry = exportBundle.entry.concat(missingIgResources);
+                                                this_1.exportBundle.entry = this_1.exportBundle.entry.concat(missingIgResources);
                                                 console.log("Adding " + missingIgResources.length + " resources not already in export for IG " + ig.id);
                                             }
                                         }
@@ -384,7 +386,7 @@ var Export = (function () {
                     case 5:
                         if (!this.options.history) return [3, 7];
                         console.log('Getting history for resources');
-                        return [4, this.getNextHistory(exportBundle, exportBundle.entry.map(function (e) { return e; }))];
+                        return [4, this.getNextHistory(this.exportBundle, this.exportBundle.entry.map(function (e) { return e; }))];
                     case 6:
                         _f.sent();
                         console.log('Done exporting history for resources');
@@ -407,13 +409,15 @@ var Export = (function () {
                             else {
                                 fhir = new fhir_1.Fhir();
                             }
-                            outputContent = fhir.objToXml(exportBundle);
+                            outputContent = fhir.objToXml(this.exportBundle);
                         }
                         else {
-                            outputContent = JSON.stringify(exportBundle);
+                            outputContent = JSON.stringify(this.exportBundle);
                         }
-                        fs.writeFileSync(this.options.out_file, outputContent);
-                        console.log("Created file " + this.options.out_file + " with a Bundle of " + exportBundle.total + " entries");
+                        if (shouldOutput) {
+                            fs.writeFileSync(this.options.out_file, outputContent);
+                            console.log("Created file " + this.options.out_file + " with a Bundle of " + this.exportBundle.total + " entries");
+                        }
                         return [2];
                 }
             });

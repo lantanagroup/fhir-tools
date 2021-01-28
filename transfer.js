@@ -94,7 +94,8 @@ var Transfer = (function () {
                         return [4, export_1.Export.newExporter({
                                 fhir_base: this.options.fhir1_base,
                                 page_size: this.options.page_size,
-                                history: this.options.history
+                                history: this.options.history,
+                                exclude: this.options.exclude
                             })];
                     case 1:
                         exporter = _a.sent();

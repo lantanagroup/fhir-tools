@@ -89,6 +89,12 @@ var Main = (function () {
                 alias: 'h',
                 type: 'boolean',
                 describe: 'Whether ot include the history of each resource'
+            })
+                .option('exclude', {
+                alias: 'e',
+                array: true,
+                type: 'string',
+                description: 'Resource types that should be excluded from the export (ex: AuditEvent)'
             });
         }, function (argv) {
             var transfer = new transfer_1.Transfer(argv);
@@ -125,6 +131,12 @@ var Main = (function () {
                 type: 'number',
                 describe: 'The size of results to return per page',
                 "default": 50
+            })
+                .option('exclude', {
+                alias: 'e',
+                array: true,
+                type: 'string',
+                description: 'Resource types that should be excluded from the export (ex: AuditEvent)'
             });
         }, function (argv) {
             var compare = new compare_1.Compare(argv);

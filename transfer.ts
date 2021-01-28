@@ -7,6 +7,7 @@ export interface TransferOptions {
     fhir2_base: string;
     page_size: number;
     history?: boolean;
+    exclude?: string[];
 }
 
 export class Transfer {
@@ -51,7 +52,8 @@ export class Transfer {
         const exporter = await Export.newExporter({
             fhir_base: this.options.fhir1_base,
             page_size: this.options.page_size,
-            history: this.options.history
+            history: this.options.history,
+            exclude: this.options.exclude
         });
         await exporter.execute(false);
 

@@ -51,6 +51,12 @@ export class Main {
                         alias: 'h',
                         type: 'boolean',
                         describe: 'Whether ot include the history of each resource'
+                    })
+                    .option('exclude', {
+                        alias: 'e',
+                        array: true,
+                        type: 'string',
+                        description: 'Resource types that should be excluded from the export (ex: AuditEvent)'
                     });
             }, (argv: any) => {
                 const transfer = new Transfer(argv);
@@ -87,6 +93,12 @@ export class Main {
                         type: 'number',
                         describe: 'The size of results to return per page',
                         default: 50
+                    })
+                    .option('exclude', {
+                        alias: 'e',
+                        array: true,
+                        type: 'string',
+                        description: 'Resource types that should be excluded from the export (ex: AuditEvent)'
                     });
             }, (argv: any) => {
                 const compare = new Compare(argv);

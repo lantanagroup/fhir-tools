@@ -52,7 +52,7 @@ var Compare = (function () {
                         return [4, export_1.Export.newExporter({
                                 fhir_base: this.options.fhir1_base,
                                 page_size: this.options.page_size,
-                                resource_type: ['StructureDefinition']
+                                exclude: this.options.exclude
                             })];
                     case 1:
                         export1 = _a.sent();
@@ -62,7 +62,8 @@ var Compare = (function () {
                         console.log("Gathering resource from second FHIR server: " + this.options.fhir2_base);
                         return [4, export_1.Export.newExporter({
                                 fhir_base: this.options.fhir2_base,
-                                page_size: this.options.page_size
+                                page_size: this.options.page_size,
+                                exclude: this.options.exclude
                             })];
                     case 3:
                         export2 = _a.sent();

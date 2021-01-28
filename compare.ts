@@ -4,6 +4,7 @@ export interface CompareOptions {
     fhir1_base: string;
     fhir2_base: string;
     page_size: number;
+    exclude?: string[];
 }
 
 export class Compare {
@@ -19,14 +20,15 @@ export class Compare {
         const export1 = await Export.newExporter({
             fhir_base: this.options.fhir1_base,
             page_size: this.options.page_size,
-            resource_type: ['StructureDefinition']
+            exclude: this.options.exclude
         });
         await export1.execute(false);
 
         console.log(`Gathering resource from second FHIR server: ${this.options.fhir2_base}`);
         const export2 = await Export.newExporter({
             fhir_base: this.options.fhir2_base,
-            page_size: this.options.page_size
+            page_size: this.options.page_size,
+            exclude: this.options.exclude
         });
         await export2.execute(false);
 

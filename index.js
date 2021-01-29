@@ -137,6 +137,11 @@ var Main = (function () {
                 array: true,
                 type: 'string',
                 description: 'Resource types that should be excluded from the export (ex: AuditEvent)'
+            })
+                .option('history', {
+                alias: 'h',
+                boolean: true,
+                description: 'Indicates if _history should be included'
             });
         }, function (argv) {
             var compare = new compare_1.Compare(argv);

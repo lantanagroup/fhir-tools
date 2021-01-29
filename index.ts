@@ -99,6 +99,11 @@ export class Main {
                         array: true,
                         type: 'string',
                         description: 'Resource types that should be excluded from the export (ex: AuditEvent)'
+                    })
+                    .option('history', {
+                        alias: 'h',
+                        boolean: true,
+                        description: 'Indicates if _history should be included'
                     });
             }, (argv: any) => {
                 const compare = new Compare(argv);

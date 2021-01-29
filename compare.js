@@ -45,6 +45,7 @@ var Compare = (function () {
     Compare.prototype.execute = function () {
         return __awaiter(this, void 0, void 0, function () {
             var export1, export2, issueCount;
+            var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -52,7 +53,8 @@ var Compare = (function () {
                         return [4, export_1.Export.newExporter({
                                 fhir_base: this.options.fhir1_base,
                                 page_size: this.options.page_size,
-                                exclude: this.options.exclude
+                                exclude: this.options.exclude,
+                                history: this.options.history
                             })];
                     case 1:
                         export1 = _a.sent();
@@ -63,7 +65,8 @@ var Compare = (function () {
                         return [4, export_1.Export.newExporter({
                                 fhir_base: this.options.fhir2_base,
                                 page_size: this.options.page_size,
-                                exclude: this.options.exclude
+                                exclude: this.options.exclude,
+                                history: this.options.history
                             })];
                     case 3:
                         export2 = _a.sent();
@@ -72,9 +75,20 @@ var Compare = (function () {
                         _a.sent();
                         issueCount = 0;
                         export1.exportBundle.entry.forEach(function (e1) {
-                            var found = export2.exportBundle.entry.find(function (e2) { return e2.resource.resourceType === e1.resource.resourceType && e2.resource.id.toLowerCase() === e1.resource.id.toLowerCase(); });
+                            var found = export2.exportBundle.entry.find(function (e2) {
+                                if (e2.resource.resourceType !== e1.resource.resourceType)
+                                    return false;
+                                if (e2.resource.id !== e1.resource.id)
+                                    return false;
+                                if (_this.options.history && e2.resource.meta.versionId !== e1.resource.meta.versionId)
+                                    return false;
+                                return true;
+                            });
                             if (!found) {
-                                console.log(e1.resource.resourceType + "/" + e1.resource.id + " is missing from the second FHIR server");
+                                var identifier = _this.options.history ?
+                                    e1.resource.resourceType + "/" + e1.resource.id + "-" + e1.resource.meta.versionId :
+                                    e1.resource.resourceType + "/" + e1.resource.id;
+                                console.log(identifier + " is missing from the second FHIR server");
                                 issueCount++;
                             }
                         });

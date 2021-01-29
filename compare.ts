@@ -5,6 +5,7 @@ export interface CompareOptions {
     fhir2_base: string;
     page_size: number;
     exclude?: string[];
+    history?: boolean;
 }
 
 export class Compare {
@@ -20,7 +21,8 @@ export class Compare {
         const export1 = await Export.newExporter({
             fhir_base: this.options.fhir1_base,
             page_size: this.options.page_size,
-            exclude: this.options.exclude
+            exclude: this.options.exclude,
+            history: this.options.history
         });
         await export1.execute(false);
 
@@ -28,17 +30,26 @@ export class Compare {
         const export2 = await Export.newExporter({
             fhir_base: this.options.fhir2_base,
             page_size: this.options.page_size,
-            exclude: this.options.exclude
+            exclude: this.options.exclude,
+            history: this.options.history
         });
         await export2.execute(false);
 
         let issueCount = 0;
 
         export1.exportBundle.entry.forEach(e1 => {
-            const found = export2.exportBundle.entry.find(e2 => e2.resource.resourceType === e1.resource.resourceType && e2.resource.id.toLowerCase() === e1.resource.id.toLowerCase());
+            const found = export2.exportBundle.entry.find(e2 => {
+                if (e2.resource.resourceType !== e1.resource.resourceType) return false;
+                if (e2.resource.id !== e1.resource.id) return false;
+                if (this.options.history && e2.resource.meta.versionId !== e1.resource.meta.versionId) return false;
+                return true;
+            });
 
             if (!found) {
-                console.log(`${e1.resource.resourceType}/${e1.resource.id} is missing from the second FHIR server`);
+                const identifier = this.options.history ?
+                    `${e1.resource.resourceType}/${e1.resource.id}-${e1.resource.meta.versionId}` :
+                    `${e1.resource.resourceType}/${e1.resource.id}`;
+                console.log(`${identifier} is missing from the second FHIR server`);
                 issueCount++;
             }
         });

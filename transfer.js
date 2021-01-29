@@ -55,7 +55,7 @@ var Transfer = (function () {
                 return [2, new Promise(function (resolve, reject) {
                         request({ url: url, method: 'PUT', body: resource, json: true }, function (err, response, body) {
                             if (err) {
-                                if (body && body.resourceType === 'OperationOutcome') {
+                                if (body && body.resourceType === 'OperationOutcome' && !body.id) {
                                     var message = JSON.stringify(body);
                                     if (body.issue && body.issue.length > 0 && body.issue[0].diagnostics) {
                                         message = body.issue[0].diagnostics;
@@ -84,7 +84,7 @@ var Transfer = (function () {
                                     });
                                     resolve(body);
                                 }
-                                else if (body.resourceType === 'OperationOutcome') {
+                                else if (body.resourceType === 'OperationOutcome' && !body.id) {
                                     var message = JSON.stringify(body);
                                     if (body.issue && body.issue.length > 0 && body.issue[0].diagnostics) {
                                         message = body.issue[0].diagnostics;

@@ -30,7 +30,7 @@ export class Transfer {
         return new Promise((resolve, reject) => {
             request({ url: url, method: 'PUT', body: resource, json: true }, (err, response, body) => {
                 if (err) {
-                    if (body && body.resourceType === 'OperationOutcome') {
+                    if (body && body.resourceType === 'OperationOutcome' && !body.id) {
                         let message = JSON.stringify(body);
 
                         if (body.issue && body.issue.length > 0 && body.issue[0].diagnostics) {
@@ -58,7 +58,7 @@ export class Transfer {
                             resource
                         });
                         resolve(body);
-                    } else if (body.resourceType === 'OperationOutcome') {
+                    } else if (body.resourceType === 'OperationOutcome' && !body.id) {
                         let message = JSON.stringify(body);
 
                         if (body.issue && body.issue.length > 0 && body.issue[0].diagnostics) {

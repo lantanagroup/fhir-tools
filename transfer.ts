@@ -3,13 +3,21 @@ import {Export} from "./export";
 import {IBundle} from "./fhir/bundle";
 import * as path from "path";
 import * as fs from "fs";
+import {ParseConformance} from "fhir/parseConformance";
+import {getFhirInstance} from "./helper";
 
 export interface TransferOptions {
-    fhir1_base: string;
-    fhir2_base: string;
+    source?: string;
+    input_file?: string;
+    destination: string;
     page_size: number;
     history?: boolean;
     exclude?: string[];
+}
+
+interface ResourceInfo {
+    resourceType: string;
+    id: string;
 }
 
 export class Transfer {
@@ -18,14 +26,20 @@ export class Transfer {
     private messages: {
         message: string;
         resource: any;
+        response: any;
     }[] = [];
+    private resources: ResourceInfo[];
 
     constructor(options: TransferOptions) {
         this.options = options;
     }
 
-    private async updateResource(fhirBase: string, resource: any) {
+    private async requestUpdate(fhirBase: string, resource: any) {
         const url = fhirBase + (fhirBase.endsWith('/') ? '' : '/') + resource.resourceType + '/' + resource.id;
+
+        if (resource.resourceType === 'Bundle' && !resource.type) {
+            resource.type = 'collection';
+        }
 
         return new Promise((resolve, reject) => {
             request({ url: url, method: 'PUT', body: resource, json: true }, (err, response, body) => {
@@ -41,12 +55,14 @@ export class Transfer {
 
                         this.messages.push({
                             message,
-                            resource
+                            resource,
+                            response: body
                         });
                     } else {
                         this.messages.push({
                             message: `An error was returned from the server: ${err}`,
-                            resource
+                            resource,
+                            response: body
                         });
                     }
 
@@ -55,7 +71,8 @@ export class Transfer {
                     if (!body.resourceType) {
                         this.messages.push({
                             message: 'Response for putting resource on destination server did not result in a resource: ' + JSON.stringify(body),
-                            resource
+                            resource,
+                            response: body
                         });
                         resolve(body);
                     } else if (body.resourceType === 'OperationOutcome' && !body.id) {
@@ -69,14 +86,16 @@ export class Transfer {
 
                         this.messages.push({
                             message,
-                            resource
+                            resource,
+                            response: body
                         });
 
                         reject(message);
                     } else if (body.resourceType !== resource.resourceType) {
                         this.messages.push({
                             message: 'Unexpected resource returned from server when putting resource on destination: ' + JSON.stringify(body),
-                            resource
+                            resource,
+                            response: body
                         });
                         resolve(body);
                     } else {
@@ -87,43 +106,193 @@ export class Transfer {
         });
     }
 
+    private async updateReferences(resource: any) {
+        if (resource.resourceType === 'ImplementationGuide' && resource.definition && resource.definition.resource) {
+            const references = resource.definition.resource
+                .filter(r => r.reference && r.reference.reference && r.reference.reference.indexOf('/') > 0)
+                .map(r => {
+                    const split = r.reference.reference.split('/');
+                    return <ResourceInfo> {
+                        resourceType: split[0],
+                        id: split[1]
+                    };
+                })
+                .filter(r => this.resources.find(n => n.resourceType === r.resourceType && n.id.toLowerCase() === r.id.toLowerCase()));
+
+            if (references.length > 0) {
+                console.log(`Found ${references.length} references to store on the destination server first`);
+            }
+
+            for (let reference of references) {
+                const foundResourceInfo = this.resources.find(r => r.resourceType === reference.resourceType && r.id === reference.id);
+                const foundResourceInfoIndex = this.resources.indexOf(foundResourceInfo);
+                this.resources.splice(foundResourceInfoIndex, 1);
+                await this.updateResource(foundResourceInfo.resourceType, foundResourceInfo.id);
+            }
+        }
+    }
+
+    private async updateResource(resourceType: string, id: string) {
+        const versionEntries = this.exportedBundle.entry
+            .filter(e => e.resource.resourceType === resourceType && e.resource.id === id);
+
+        console.log(`Putting resource ${resourceType}/${id} on destination server (${versionEntries.length} versions)`);
+
+        for (let versionEntry of versionEntries) {
+            await this.updateReferences(versionEntry.resource);
+
+            // Remove extensions from Binary.data that do not have a value for Binary.data
+            // https://github.com/hapifhir/hapi-fhir/issues/2333
+            if (versionEntry.resource.contained) {
+                versionEntry.resource.contained
+                    .filter(c => c.resourceType === 'Binary' && !c.data && c._data)
+                    .forEach(c => delete c._data);
+            }
+
+            // Make sure bundles have a type
+            if (versionEntry.resource.resourceType === 'Bundle' && !versionEntry.resource.type) {
+                versionEntry.resource.type = 'collection';
+            }
+
+            console.log(`Putting resource ${resourceType}/${id}#${versionEntry.resource.meta?.versionId || '1'}...`);
+            await this.requestUpdate(this.options.destination, versionEntry.resource);
+        }
+    }
+
     private async updateNext() {
-        if (this.exportedBundle.entry.length <= 0) {
+        if (this.resources.length <= 0) {
             return;
         }
 
-        const nextEntry = this.exportedBundle.entry[0];
-        this.exportedBundle.entry.splice(0, 1);
-        const nextResource = nextEntry.resource;
+        console.log(`Getting next resource to update (${this.resources.length})`);
 
-        const identifier = this.options.history ?
-            `${nextResource.resourceType}-${nextResource.id}-${nextResource.meta.versionId}` :
-            `${nextResource.resourceType}-${nextResource.id}`;
-        console.log(`Putting ${identifier} onto the destination FHIR server. ${this.exportedBundle.entry.length} left...`);
+        const next = this.resources[0];
+        this.resources.splice(0, 1);
 
-        try {
-            await this.updateResource(this.options.fhir2_base, nextResource);
-        } catch (ex) {
-            console.log('Error putting resource on destination server: ' + ex.message);
-        }
-
+        await this.updateResource(next.resourceType, next.id);
         await this.updateNext();
     }
 
+    private discoverResources() {
+        this.resources = [];
+        this.exportedBundle.entry
+            .map(e => {
+                return {
+                    resourceType: e.resource.resourceType,
+                    id: e.resource.id
+                };
+            })
+            .forEach(e => {
+                if (!this.resources.find(u => u.resourceType === e.resourceType && u.id === e.id)) {
+                    this.resources.push(e);
+                }
+            });
+    }
+
     public async execute() {
-        console.log('Retrieving resources from the source FHIR server');
+        if (this.options.source) {
+            console.log('Retrieving resources from the source FHIR server');
 
-        const exporter = await Export.newExporter({
-            fhir_base: this.options.fhir1_base,
-            page_size: this.options.page_size,
-            history: this.options.history,
-            exclude: this.options.exclude
-        });
-        await exporter.execute(false);
+            const exporter = await Export.newExporter({
+                fhir_base: this.options.source,
+                page_size: this.options.page_size,
+                history: this.options.history,
+                exclude: this.options.exclude
+            });
+            await exporter.execute(false);
 
-        console.log('Done retrieving resources');
+            console.log('Done retrieving resources');
 
-        this.exportedBundle = exporter.exportBundle;
+            this.exportedBundle = exporter.exportBundle;
+        } else if (this.options.input_file) {
+            if (this.options.input_file.toLowerCase().endsWith('.xml')) {
+                const exporter = await Export.newExporter({
+                    fhir_base: this.options.destination,
+                    page_size: this.options.page_size
+                });
+
+                let fhir = getFhirInstance(exporter.version);
+
+                console.log('Parsing input file');
+                this.exportedBundle = fhir.xmlToObj(fs.readFileSync(this.options.input_file).toString()) as IBundle;
+            } else if (this.options.input_file.toLowerCase().endsWith('.json')) {
+                console.log('Parsing input file');
+                this.exportedBundle = JSON.parse(fs.readFileSync(this.options.input_file).toString());
+            } else {
+                console.log('Unexpected file type for input_file');
+                return;
+            }
+
+            if (this.options.exclude) {
+                this.exportedBundle.entry = this.exportedBundle.entry.filter(e => {
+                    return this.options.exclude.indexOf(e.resource.resourceType) < 0;
+                });
+            }
+        } else {
+            console.log('Either source or input_file must be specified');
+            return;
+        }
+
+        this.discoverResources();
+
+        // Find ImplementationGuides that are referencing ValueSets not included in the bundle and
+        // add a placeholder value set to the Bundle with a URL. This block can be removed after this HAPI issue is fixed:
+        // https://github.com/hapifhir/hapi-fhir/issues/2332
+        this.exportedBundle.entry
+            .filter(e => e.resource.resourceType === 'ImplementationGuide' && e.resource.definition && e.resource.definition.resource)
+            .map(e => e.resource)
+            .forEach(ig => {
+                const notFoundValueSets = ig.definition.resource
+                    .filter(r => r.reference && r.reference.reference && r.reference.reference.startsWith('ValueSet/'))
+                    .map(r => {
+                        const split = r.reference.reference.split('/');
+                        return split[1];
+                    })
+                    .filter(r => {
+                        const found = this.resources.find(n => n.resourceType === 'ValueSet' && n.id.toLowerCase() === r.toLowerCase());
+                        return !found;
+                    });
+
+                notFoundValueSets.forEach(vsId => {
+                    this.exportedBundle.entry.push({
+                        resource: {
+                            resourceType: 'ValueSet',
+                            id: vsId,
+                            url: ig.url + `/ValueSet/${vsId}`
+                        }
+                    });
+                    this.resources.push({
+                        resourceType: 'ValueSet',
+                        id: vsId
+                    });
+                });
+
+                const notFoundBundles = ig.definition.resource
+                    .filter(r => r.reference && r.reference.reference && r.reference.reference.startsWith('Bundle/'))
+                    .map(r => {
+                        const split = r.reference.reference.split('/');
+                        return split[1];
+                    })
+                    .filter(r => {
+                        const found = this.resources.find(n => n.resourceType === 'Bundle' && n.id.toLowerCase() === r.toLowerCase());
+                        return !found;
+                    });
+
+                notFoundBundles.forEach(bId => {
+                    this.exportedBundle.entry.push({
+                        resource: {
+                            resourceType: 'Bundle',
+                            id: bId,
+                            type: 'collection'
+                        }
+                    });
+                    this.resources.push({
+                        resourceType: 'Bundle',
+                        id: bId
+                    });
+                });
+            });
+
         await this.updateNext();
 
         if (this.messages && this.messages.length > 0) {

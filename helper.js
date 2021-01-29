@@ -1,6 +1,31 @@
 "use strict";
 exports.__esModule = true;
-exports.parseOperationOutcome = void 0;
+exports.parseOperationOutcome = exports.getFhirInstance = void 0;
+var fhir_1 = require("fhir/fhir");
+var parseConformance_1 = require("fhir/parseConformance");
+var fs_1 = require("fs");
+var path_1 = require("path");
+function getFhirInstance(version) {
+    if (version === void 0) { version = 'r4'; }
+    var fhir;
+    if (version === 'dstu3') {
+        var parser = new parseConformance_1.ParseConformance();
+        var codeSystem3166 = JSON.parse(fs_1["default"].readFileSync(path_1["default"].join(__dirname, 'fhir/stu3/codesystem-iso3166.json')).toString());
+        var profilesResources = JSON.parse(fs_1["default"].readFileSync(path_1["default"].join(__dirname, 'fhir/stu3/profiles-resources.json')).toString());
+        var profilesTypes = JSON.parse(fs_1["default"].readFileSync(path_1["default"].join(__dirname, 'fhir/stu3/profiles-types.json')).toString());
+        var valueSets = JSON.parse(fs_1["default"].readFileSync(path_1["default"].join(__dirname, 'fhir/stu3/valuesets.json')).toString());
+        parser.loadCodeSystem(codeSystem3166);
+        parser.parseBundle(profilesResources);
+        parser.parseBundle(profilesTypes);
+        parser.parseBundle(valueSets);
+        fhir = new fhir_1.Fhir(parser);
+    }
+    else if (version === 'r4') {
+        fhir = new fhir_1.Fhir();
+    }
+    return fhir;
+}
+exports.getFhirInstance = getFhirInstance;
 function parseOperationOutcome(oo) {
     if (oo && oo.resourceType === 'OperationOutcome') {
         if (oo.issue && oo.issue.length > 0) {

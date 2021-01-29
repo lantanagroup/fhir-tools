@@ -1,15 +1,9 @@
 import * as yargs from 'yargs';
 import * as fs from 'fs';
 import {Export, ExportOptions} from './export';
-import {Import} from './import';
 import {FixIds} from './fixids';
 import {Transfer} from "./transfer";
 import {Compare} from "./compare";
-
-class ImportOptions {
-    public fhir_base: string;
-    public in_file: string;
-}
 
 class FixIdsOptions {
     public file_path: string;
@@ -31,15 +25,21 @@ export class Main {
                 fixids.fix();
                 fixids.save();
             })
-            .command('transfer <fhir1_base> <fhir2_base>', 'Transfer resources from one server to another', (yargs: any) => {
+            .command('transfer <destination>', 'Transfer resources from one server to another', (yargs: any) => {
                 yargs
-                    .positional('fhir1_base', {
+                    .positional('destination', {
                         type: 'string',
-                        describe: 'The FHIR server base of the first FHIR server (where resources are retrieved)'
+                        describe: 'The FHIR server base of the destination FHIR server (where resources are stored)'
                     })
-                    .positional('fhir2_base', {
+                    .option('source', {
+                        alias: 'f',
                         type: 'string',
-                        describe: 'The FHIR server base of the second FHIR server (where resources are stored)'
+                        describe: 'The base URL of the source FHIR server (where resources are retrieved)'
+                    })
+                    .option('input_file', {
+                        alias: 'i',
+                        type: 'string',
+                        describe: 'Path to a file that represents the export of the source FHIR server'
                     })
                     .option('page_size', {
                         alias: 's',
@@ -61,22 +61,6 @@ export class Main {
             }, (argv: any) => {
                 const transfer = new Transfer(argv);
                 transfer.execute();
-            })
-            .command('import <fhir_base> <in_file>', 'Import data to a FHIR server', (yargs: any) => {
-                yargs
-                    .positional('fhir_base', {
-                        type: 'string',
-                        describe: 'The base url of the fhir server'
-                    })
-                    .positional('in_file', {
-                        type: 'string',
-                        describe: 'Location on computer of the bundle to import'
-                    });
-            }, (argv: ImportOptions) => {
-                const importContent = fs.readFileSync(argv.in_file).toString();
-                const bundle = JSON.parse(importContent);
-                const importer = new Import(argv.fhir_base);
-                importer.execute(bundle);
             })
             .command('compare <fhir1_base> <fhir2_base>', 'Compare the resources from one FHIR server to another', (yargs: any) => {
                 yargs

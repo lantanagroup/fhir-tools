@@ -48,9 +48,7 @@ var request = require("request");
 var urljoin = require("url-join");
 var fs = require("fs");
 var semver = require("semver");
-var fhir_1 = require("fhir/fhir");
-var path = require("path");
-var parseConformance_1 = require("fhir/parseConformance");
+var helper_1 = require("./helper");
 var ExportOptions = (function () {
     function ExportOptions() {
         this.ig = false;
@@ -110,7 +108,7 @@ var Export = (function () {
                                 }
                                 exporter.resourceTypes
                                     .sort(function (a, b) { return a.localeCompare(b); });
-                                console.log("Server is " + exporter.version + ", found " + exporter.resourceTypes.length + " resource types to export.");
+                                console.log("Server is " + exporter.version + ", found " + exporter.resourceTypes.length + " resource types.");
                                 resolve(exporter);
                             }
                         });
@@ -279,7 +277,7 @@ var Export = (function () {
     Export.prototype.execute = function (shouldOutput) {
         if (shouldOutput === void 0) { shouldOutput = true; }
         return __awaiter(this, void 0, void 0, function () {
-            var _i, _a, resourceType, bundles, _b, bundles_1, bundle, _c, _d, entry, igs, _loop_1, this_1, _e, igs_1, ig, outputContent, fhir, parser, codeSystem3166, profilesResources, profilesTypes, valueSets;
+            var _i, _a, resourceType, bundles, _b, bundles_1, bundle, _c, _d, entry, igs, _loop_1, this_1, _e, igs_1, ig, outputContent, fhir;
             var _this = this;
             return __generator(this, function (_f) {
                 switch (_f.label) {
@@ -393,22 +391,7 @@ var Export = (function () {
                         _f.label = 7;
                     case 7:
                         if (this.options.xml) {
-                            fhir = void 0;
-                            if (this.version === 'dstu3') {
-                                parser = new parseConformance_1.ParseConformance();
-                                codeSystem3166 = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/codesystem-iso3166.json')).toString());
-                                profilesResources = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/profiles-resources.json')).toString());
-                                profilesTypes = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/profiles-types.json')).toString());
-                                valueSets = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/valuesets.json')).toString());
-                                parser.loadCodeSystem(codeSystem3166);
-                                parser.parseBundle(profilesResources);
-                                parser.parseBundle(profilesTypes);
-                                parser.parseBundle(valueSets);
-                                fhir = new fhir_1.Fhir(parser);
-                            }
-                            else {
-                                fhir = new fhir_1.Fhir();
-                            }
+                            fhir = helper_1.getFhirInstance(this.version);
                             outputContent = fhir.objToXml(this.exportBundle);
                         }
                         else {

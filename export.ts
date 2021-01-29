@@ -6,6 +6,7 @@ import {Fhir} from "fhir/fhir";
 import * as path from "path";
 import {ParseConformance} from "fhir/parseConformance";
 import {IBundle} from "./fhir/bundle";
+import {getFhirInstance} from "./helper";
 
 export class ExportOptions {
     public fhir_base: string;
@@ -24,7 +25,7 @@ export class Export {
     readonly maxHistoryQueue: number = 10
     private resourceTypes: string[] = [];
     private bundles: { [resourceType: string]: IBundle[] } = {};
-    private version: 'dstu3'|'r4';
+    public version: 'dstu3'|'r4';
     public exportBundle: IBundle;
 
     constructor(options: ExportOptions) {
@@ -77,7 +78,7 @@ export class Export {
                     exporter.resourceTypes
                         .sort((a, b) => a.localeCompare(b));
 
-                    console.log(`Server is ${exporter.version}, found ${exporter.resourceTypes.length} resource types to export.`);
+                    console.log(`Server is ${exporter.version}, found ${exporter.resourceTypes.length} resource types.`);
 
                     resolve(exporter);
                 }
@@ -309,25 +310,7 @@ export class Export {
         let outputContent: string;
 
         if (this.options.xml) {
-            let fhir: Fhir;
-
-            if (this.version === 'dstu3') {
-                const parser = new ParseConformance();
-
-                const codeSystem3166 = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/codesystem-iso3166.json')).toString());
-                const profilesResources = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/profiles-resources.json')).toString());
-                const profilesTypes = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/profiles-types.json')).toString());
-                const valueSets = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/valuesets.json')).toString());
-                parser.loadCodeSystem(codeSystem3166);
-                parser.parseBundle(profilesResources);
-                parser.parseBundle(profilesTypes);
-                parser.parseBundle(valueSets);
-
-                fhir = new Fhir(parser);
-            } else {
-                fhir = new Fhir();
-            }
-
+            let fhir = getFhirInstance(this.version);
             outputContent = fhir.objToXml(this.exportBundle);
         } else {
             outputContent = JSON.stringify(this.exportBundle);

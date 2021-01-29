@@ -39,22 +39,75 @@ exports.__esModule = true;
 exports.Transfer = void 0;
 var request = require("request");
 var export_1 = require("./export");
+var path = require("path");
+var fs = require("fs");
 var Transfer = (function () {
     function Transfer(options) {
+        this.messages = [];
         this.options = options;
     }
     Transfer.prototype.updateResource = function (fhirBase, resource) {
         return __awaiter(this, void 0, void 0, function () {
             var url;
+            var _this = this;
             return __generator(this, function (_a) {
                 url = fhirBase + (fhirBase.endsWith('/') ? '' : '/') + resource.resourceType + '/' + resource.id;
                 return [2, new Promise(function (resolve, reject) {
                         request({ url: url, method: 'PUT', body: resource, json: true }, function (err, response, body) {
                             if (err) {
+                                if (body && body.resourceType === 'OperationOutcome') {
+                                    var message = JSON.stringify(body);
+                                    if (body.issue && body.issue.length > 0 && body.issue[0].diagnostics) {
+                                        message = body.issue[0].diagnostics;
+                                    }
+                                    else if (body.text && body.text.div) {
+                                        message = body.text.div;
+                                    }
+                                    _this.messages.push({
+                                        message: message,
+                                        resource: resource
+                                    });
+                                }
+                                else {
+                                    _this.messages.push({
+                                        message: "An error was returned from the server: " + err,
+                                        resource: resource
+                                    });
+                                }
                                 reject(err);
                             }
                             else {
-                                resolve(body);
+                                if (!body.resourceType) {
+                                    _this.messages.push({
+                                        message: 'Response for putting resource on destination server did not result in a resource: ' + JSON.stringify(body),
+                                        resource: resource
+                                    });
+                                    resolve(body);
+                                }
+                                else if (body.resourceType === 'OperationOutcome') {
+                                    var message = JSON.stringify(body);
+                                    if (body.issue && body.issue.length > 0 && body.issue[0].diagnostics) {
+                                        message = body.issue[0].diagnostics;
+                                    }
+                                    else if (body.text && body.text.div) {
+                                        message = body.text.div;
+                                    }
+                                    _this.messages.push({
+                                        message: message,
+                                        resource: resource
+                                    });
+                                    reject(message);
+                                }
+                                else if (body.resourceType !== resource.resourceType) {
+                                    _this.messages.push({
+                                        message: 'Unexpected resource returned from server when putting resource on destination: ' + JSON.stringify(body),
+                                        resource: resource
+                                    });
+                                    resolve(body);
+                                }
+                                else {
+                                    resolve(body);
+                                }
                             }
                         });
                     })];
@@ -63,7 +116,7 @@ var Transfer = (function () {
     };
     Transfer.prototype.updateNext = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var nextEntry, nextResource;
+            var nextEntry, nextResource, ex_1;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -73,11 +126,19 @@ var Transfer = (function () {
                         nextEntry = this.exportedBundle.entry.pop();
                         nextResource = nextEntry.resource;
                         console.log("Putting " + nextResource.resourceType + "/" + nextResource.id + " onto the destination FHIR server. " + this.exportedBundle.entry.length + " left...");
-                        return [4, this.updateResource(this.options.fhir2_base, nextResource)];
+                        _a.label = 1;
                     case 1:
-                        _a.sent();
-                        return [4, this.updateNext()];
+                        _a.trys.push([1, 3, , 4]);
+                        return [4, this.updateResource(this.options.fhir2_base, nextResource)];
                     case 2:
+                        _a.sent();
+                        return [3, 4];
+                    case 3:
+                        ex_1 = _a.sent();
+                        console.log('Error putting resource on destination server: ' + ex_1.message);
+                        return [3, 4];
+                    case 4: return [4, this.updateNext()];
+                    case 5:
                         _a.sent();
                         return [2];
                 }
@@ -87,6 +148,7 @@ var Transfer = (function () {
     Transfer.prototype.execute = function () {
         return __awaiter(this, void 0, void 0, function () {
             var exporter;
+            var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -107,6 +169,20 @@ var Transfer = (function () {
                         return [4, this.updateNext()];
                     case 3:
                         _a.sent();
+                        if (this.messages && this.messages.length > 0) {
+                            console.log('Found the following issues when transferring:');
+                            if (!fs.existsSync(path.join(__dirname, 'issues'))) {
+                                fs.mkdirSync(path.join(__dirname, 'issues'));
+                            }
+                            this.messages.forEach(function (m) {
+                                var identifier = _this.options.history ?
+                                    m.resource.resourceType + "-" + m.resource.id + "-" + m.resource.meta.versionId :
+                                    m.resource.resourceType + "-" + m.resource.id;
+                                console.log(identifier + ": " + m.message);
+                                var fileName = identifier + ".json";
+                                fs.writeFileSync(path.join(__dirname, 'issues', fileName), JSON.stringify(m.resource, null, '\t'));
+                            });
+                        }
                         return [2];
                 }
             });

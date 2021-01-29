@@ -92,7 +92,8 @@ export class Transfer {
             return;
         }
 
-        const nextEntry = this.exportedBundle.entry.pop();
+        const nextEntry = this.exportedBundle.entry[0];
+        this.exportedBundle.entry.splice(0, 1);
         const nextResource = nextEntry.resource;
 
         console.log(`Putting ${nextResource.resourceType}/${nextResource.id} onto the destination FHIR server. ${this.exportedBundle.entry.length} left...`);

@@ -123,7 +123,8 @@ var Transfer = (function () {
                         if (this.exportedBundle.entry.length <= 0) {
                             return [2];
                         }
-                        nextEntry = this.exportedBundle.entry.pop();
+                        nextEntry = this.exportedBundle.entry[0];
+                        this.exportedBundle.entry.splice(0, 1);
                         nextResource = nextEntry.resource;
                         console.log("Putting " + nextResource.resourceType + "/" + nextResource.id + " onto the destination FHIR server. " + this.exportedBundle.entry.length + " left...");
                         _a.label = 1;

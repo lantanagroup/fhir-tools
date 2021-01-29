@@ -347,43 +347,25 @@ var Transfer = (function () {
                             .map(function (e) { return e.resource; })
                             .forEach(function (ig) {
                             var references = _this.getIgReferences(ig);
-                            var notFoundValueSets = references
-                                .filter(function (r) { return r.resourceType === 'ValueSet'; })
-                                .filter(function (r) {
-                                var found = _this.resources.find(function (n) { return n.resourceType === 'ValueSet' && n.id.toLowerCase() === r.id.toLowerCase(); });
-                                return !found;
-                            });
-                            notFoundValueSets.forEach(function (vsId) {
+                            var notFoundReferences = references
+                                .filter(function (r) { return !_this.resources.find(function (n) { return n.resourceType === r.resourceType && n.id.toLowerCase() === r.id.toLowerCase(); }); });
+                            notFoundReferences
+                                .filter(function (r) { return r.resourceType === 'ValueSet' || r.resourceType === 'ConceptMap'; })
+                                .forEach(function (ref) {
+                                var mockResource = {
+                                    resourceType: ref.resourceType,
+                                    id: ref.id
+                                };
+                                if (ref.resourceType === 'ValueSet' || ref.resourceType === 'ConceptMap') {
+                                    mockResource.url = ig.url + ("/" + ref.resourceType + "/" + ref.id);
+                                }
+                                else if (ref.resourceType === 'Bundle') {
+                                    mockResource.type = 'collection';
+                                }
                                 _this.exportedBundle.entry.push({
-                                    resource: {
-                                        resourceType: 'ValueSet',
-                                        id: vsId,
-                                        url: ig.url + ("/ValueSet/" + vsId)
-                                    }
+                                    resource: mockResource
                                 });
-                                _this.resources.push({
-                                    resourceType: 'ValueSet',
-                                    id: vsId
-                                });
-                            });
-                            var notFoundBundles = references
-                                .filter(function (r) { return r.resourceType === 'Bundle'; })
-                                .filter(function (r) {
-                                var found = _this.resources.find(function (n) { return n.resourceType === 'Bundle' && n.id.toLowerCase() === r.id.toLowerCase(); });
-                                return !found;
-                            });
-                            notFoundBundles.forEach(function (bId) {
-                                _this.exportedBundle.entry.push({
-                                    resource: {
-                                        resourceType: 'Bundle',
-                                        id: bId,
-                                        type: 'collection'
-                                    }
-                                });
-                                _this.resources.push({
-                                    resourceType: 'Bundle',
-                                    id: bId
-                                });
+                                _this.resources.push(ref);
                             });
                         });
                         return [4, this.updateNext()];

@@ -283,48 +283,28 @@ export class Transfer {
             .map(e => e.resource)
             .forEach(ig => {
                 const references = this.getIgReferences(ig);
+                const notFoundReferences = references
+                    .filter(r => !this.resources.find(n => n.resourceType === r.resourceType && n.id.toLowerCase() === r.id.toLowerCase()));
 
-                const notFoundValueSets = references
-                    .filter(r => r.resourceType === 'ValueSet')
-                    .filter(r => {
-                        const found = this.resources.find(n => n.resourceType === 'ValueSet' && n.id.toLowerCase() === r.id.toLowerCase());
-                        return !found;
-                    });
+                notFoundReferences
+                    .filter(r => r.resourceType === 'ValueSet' || r.resourceType === 'ConceptMap')
+                    .forEach(ref => {
+                        const mockResource: any = {
+                            resourceType: ref.resourceType,
+                            id: ref.id
+                        };
 
-                notFoundValueSets.forEach(vsId => {
-                    this.exportedBundle.entry.push({
-                        resource: {
-                            resourceType: 'ValueSet',
-                            id: vsId,
-                            url: ig.url + `/ValueSet/${vsId}`
+                        if (ref.resourceType === 'ValueSet' || ref.resourceType === 'ConceptMap') {
+                            mockResource.url = ig.url + `/${ref.resourceType}/${ref.id}`;
+                        } else if (ref.resourceType === 'Bundle') {
+                            mockResource.type = 'collection';
                         }
-                    });
-                    this.resources.push({
-                        resourceType: 'ValueSet',
-                        id: vsId
-                    });
-                });
 
-                const notFoundBundles = references
-                    .filter(r => r.resourceType === 'Bundle')
-                    .filter(r => {
-                        const found = this.resources.find(n => n.resourceType === 'Bundle' && n.id.toLowerCase() === r.id.toLowerCase());
-                        return !found;
+                        this.exportedBundle.entry.push({
+                            resource: mockResource
+                        });
+                        this.resources.push(ref);
                     });
-
-                notFoundBundles.forEach(bId => {
-                    this.exportedBundle.entry.push({
-                        resource: {
-                            resourceType: 'Bundle',
-                            id: bId,
-                            type: 'collection'
-                        }
-                    });
-                    this.resources.push({
-                        resourceType: 'Bundle',
-                        id: bId
-                    });
-                });
             });
 
         await this.updateNext();

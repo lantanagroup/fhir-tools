@@ -271,7 +271,7 @@ var Transfer = (function () {
         else if (this.fhirVersion === 'r4') {
             if (ig.definition && ig.definition.resource) {
                 ig.definition.resource
-                    .filter(function (r) { return r.reference && r.reference.refererence && r.reference.reference.split('/') > 0; })
+                    .filter(function (r) { return r.reference && r.reference.reference && r.reference.reference.split('/').length > 0; })
                     .forEach(function (r) {
                     var split = r.reference.reference.split('/');
                     if (!references.find(function (n) { return n.resourceType === split[0] && n.id.toLowerCase() === split[1].toLowerCase(); })) {
@@ -350,7 +350,7 @@ var Transfer = (function () {
                             var notFoundReferences = references
                                 .filter(function (r) { return !_this.resources.find(function (n) { return n.resourceType === r.resourceType && n.id.toLowerCase() === r.id.toLowerCase(); }); });
                             notFoundReferences
-                                .filter(function (r) { return r.resourceType === 'ValueSet' || r.resourceType === 'ConceptMap'; })
+                                .filter(function (r) { return ['Bundle', 'ValueSet', 'ConceptMap'].indexOf(r.resourceType) >= 0; })
                                 .forEach(function (ref) {
                                 var mockResource = {
                                     resourceType: ref.resourceType,

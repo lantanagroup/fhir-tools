@@ -209,7 +209,7 @@ export class Transfer {
         } else if (this.fhirVersion === 'r4') {
             if (ig.definition && ig.definition.resource) {
                 ig.definition.resource
-                    .filter(r => r.reference && r.reference.refererence && r.reference.reference.split('/') > 0)
+                    .filter(r => r.reference && r.reference.reference && r.reference.reference.split('/').length > 0)
                     .forEach(r => {
                         const split = r.reference.reference.split('/');
 
@@ -287,7 +287,7 @@ export class Transfer {
                     .filter(r => !this.resources.find(n => n.resourceType === r.resourceType && n.id.toLowerCase() === r.id.toLowerCase()));
 
                 notFoundReferences
-                    .filter(r => r.resourceType === 'ValueSet' || r.resourceType === 'ConceptMap')
+                    .filter(r => ['Bundle', 'ValueSet', 'ConceptMap'].indexOf(r.resourceType) >= 0)
                     .forEach(ref => {
                         const mockResource: any = {
                             resourceType: ref.resourceType,

@@ -78,7 +78,7 @@ var Export = (function () {
                         };
                         console.log("Checking /metadata of server to determine version and resources");
                         request(metadataOptions, function (err, response, metadata) {
-                            if (err) {
+                            if (err || response.statusCode != 200) {
                                 reject('Error retrieving metadata from FHIR server');
                             }
                             else {

@@ -45,7 +45,7 @@ export class Export {
             console.log(`Checking /metadata of server to determine version and resources`);
 
             request(metadataOptions, (err, response, metadata) => {
-                if (err) {
+                if (err || response.statusCode != 200) {
                     reject('Error retrieving metadata from FHIR server');
                 } else {
                     if (semver.satisfies(metadata.fhirVersion, '>= 3.2.0 < 4.2.0')) {               // R4

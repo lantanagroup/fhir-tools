@@ -29,6 +29,7 @@ export class Transfer {
         response: any;
     }[] = [];
     private resources: ResourceInfo[];
+    private fhirVersion: 'dstu3'|'r4';
 
     constructor(options: TransferOptions) {
         this.options = options;
@@ -107,17 +108,8 @@ export class Transfer {
     }
 
     private async updateReferences(resource: any) {
-        if (resource.resourceType === 'ImplementationGuide' && resource.definition && resource.definition.resource) {
-            const references = resource.definition.resource
-                .filter(r => r.reference && r.reference.reference && r.reference.reference.indexOf('/') > 0)
-                .map(r => {
-                    const split = r.reference.reference.split('/');
-                    return <ResourceInfo> {
-                        resourceType: split[0],
-                        id: split[1]
-                    };
-                })
-                .filter(r => this.resources.find(n => n.resourceType === r.resourceType && n.id.toLowerCase() === r.id.toLowerCase()));
+        if (resource.resourceType === 'ImplementationGuide') {
+            const references = this.getIgReferences(resource);
 
             if (references.length > 0) {
                 console.log(`Found ${references.length} references to store on the destination server first`);
@@ -125,9 +117,12 @@ export class Transfer {
 
             for (let reference of references) {
                 const foundResourceInfo = this.resources.find(r => r.resourceType === reference.resourceType && r.id === reference.id);
-                const foundResourceInfoIndex = this.resources.indexOf(foundResourceInfo);
-                this.resources.splice(foundResourceInfoIndex, 1);
-                await this.updateResource(foundResourceInfo.resourceType, foundResourceInfo.id);
+
+                if (foundResourceInfo) {
+                    const foundResourceInfoIndex = this.resources.indexOf(foundResourceInfo);
+                    this.resources.splice(foundResourceInfoIndex, 1);
+                    await this.updateResource(foundResourceInfo.resourceType, foundResourceInfo.id);
+                }
             }
         }
     }
@@ -189,6 +184,48 @@ export class Transfer {
             });
     }
 
+    private getIgReferences(ig: any): ResourceInfo[] {
+        const references: ResourceInfo[] = [];
+
+        if (this.fhirVersion === 'dstu3') {
+            if (ig.package) {
+                ig.package.forEach(p => {
+                    if (p.resource) {
+                        p.resource.forEach(r => {
+                            if (r.sourceReference && r.sourceReference.reference && r.sourceReference.reference.indexOf('/') > 0) {
+                                const split = r.sourceReference.reference.split('/');
+
+                                if (!references.find(n => n.resourceType === split[0] && n.id.toLowerCase() === split[1].toLowerCase())) {
+                                    references.push({
+                                        resourceType: split[0],
+                                        id: split[1]
+                                    });
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+        } else if (this.fhirVersion === 'r4') {
+            if (ig.definition && ig.definition.resource) {
+                ig.definition.resource
+                    .filter(r => r.reference && r.reference.refererence && r.reference.reference.split('/') > 0)
+                    .forEach(r => {
+                        const split = r.reference.reference.split('/');
+
+                        if (!references.find(n => n.resourceType === split[0] && n.id.toLowerCase() === split[1].toLowerCase())) {
+                            references.push({
+                                resourceType: split[0],
+                                id: split[1]
+                            });
+                        }
+                    });
+            }
+        }
+
+        return references;
+    }
+
     public async execute() {
         if (this.options.source) {
             console.log('Retrieving resources from the source FHIR server');
@@ -203,15 +240,18 @@ export class Transfer {
 
             console.log('Done retrieving resources');
 
+            this.fhirVersion = exporter.version;
             this.exportedBundle = exporter.exportBundle;
         } else if (this.options.input_file) {
-            if (this.options.input_file.toLowerCase().endsWith('.xml')) {
-                const exporter = await Export.newExporter({
-                    fhir_base: this.options.destination,
-                    page_size: this.options.page_size
-                });
+            const exporter = await Export.newExporter({
+                fhir_base: this.options.destination,
+                page_size: this.options.page_size
+            });
 
-                let fhir = getFhirInstance(exporter.version);
+            this.fhirVersion = exporter.version;
+
+            if (this.options.input_file.toLowerCase().endsWith('.xml')) {
+                let fhir = getFhirInstance(this.fhirVersion);
 
                 console.log('Parsing input file');
                 this.exportedBundle = fhir.xmlToObj(fs.readFileSync(this.options.input_file).toString()) as IBundle;
@@ -239,17 +279,15 @@ export class Transfer {
         // add a placeholder value set to the Bundle with a URL. This block can be removed after this HAPI issue is fixed:
         // https://github.com/hapifhir/hapi-fhir/issues/2332
         this.exportedBundle.entry
-            .filter(e => e.resource.resourceType === 'ImplementationGuide' && e.resource.definition && e.resource.definition.resource)
+            .filter(e => e.resource.resourceType === 'ImplementationGuide')
             .map(e => e.resource)
             .forEach(ig => {
-                const notFoundValueSets = ig.definition.resource
-                    .filter(r => r.reference && r.reference.reference && r.reference.reference.startsWith('ValueSet/'))
-                    .map(r => {
-                        const split = r.reference.reference.split('/');
-                        return split[1];
-                    })
+                const references = this.getIgReferences(ig);
+
+                const notFoundValueSets = references
+                    .filter(r => r.resourceType === 'ValueSet')
                     .filter(r => {
-                        const found = this.resources.find(n => n.resourceType === 'ValueSet' && n.id.toLowerCase() === r.toLowerCase());
+                        const found = this.resources.find(n => n.resourceType === 'ValueSet' && n.id.toLowerCase() === r.id.toLowerCase());
                         return !found;
                     });
 
@@ -267,14 +305,10 @@ export class Transfer {
                     });
                 });
 
-                const notFoundBundles = ig.definition.resource
-                    .filter(r => r.reference && r.reference.reference && r.reference.reference.startsWith('Bundle/'))
-                    .map(r => {
-                        const split = r.reference.reference.split('/');
-                        return split[1];
-                    })
+                const notFoundBundles = references
+                    .filter(r => r.resourceType === 'Bundle')
                     .filter(r => {
-                        const found = this.resources.find(n => n.resourceType === 'Bundle' && n.id.toLowerCase() === r.toLowerCase());
+                        const found = this.resources.find(n => n.resourceType === 'Bundle' && n.id.toLowerCase() === r.id.toLowerCase());
                         return !found;
                     });
 

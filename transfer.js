@@ -126,21 +126,11 @@ var Transfer = (function () {
     Transfer.prototype.updateReferences = function (resource) {
         return __awaiter(this, void 0, void 0, function () {
             var references, _loop_1, this_1, _i, references_1, reference;
-            var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (!(resource.resourceType === 'ImplementationGuide' && resource.definition && resource.definition.resource)) return [3, 4];
-                        references = resource.definition.resource
-                            .filter(function (r) { return r.reference && r.reference.reference && r.reference.reference.indexOf('/') > 0; })
-                            .map(function (r) {
-                            var split = r.reference.reference.split('/');
-                            return {
-                                resourceType: split[0],
-                                id: split[1]
-                            };
-                        })
-                            .filter(function (r) { return _this.resources.find(function (n) { return n.resourceType === r.resourceType && n.id.toLowerCase() === r.id.toLowerCase(); }); });
+                        if (!(resource.resourceType === 'ImplementationGuide')) return [3, 4];
+                        references = this.getIgReferences(resource);
                         if (references.length > 0) {
                             console.log("Found " + references.length + " references to store on the destination server first");
                         }
@@ -150,12 +140,14 @@ var Transfer = (function () {
                                 switch (_a.label) {
                                     case 0:
                                         foundResourceInfo = this_1.resources.find(function (r) { return r.resourceType === reference.resourceType && r.id === reference.id; });
+                                        if (!foundResourceInfo) return [3, 2];
                                         foundResourceInfoIndex = this_1.resources.indexOf(foundResourceInfo);
                                         this_1.resources.splice(foundResourceInfoIndex, 1);
                                         return [4, this_1.updateResource(foundResourceInfo.resourceType, foundResourceInfo.id)];
                                     case 1:
                                         _a.sent();
-                                        return [2];
+                                        _a.label = 2;
+                                    case 2: return [2];
                                 }
                             });
                         };
@@ -255,6 +247,44 @@ var Transfer = (function () {
             }
         });
     };
+    Transfer.prototype.getIgReferences = function (ig) {
+        var references = [];
+        if (this.fhirVersion === 'dstu3') {
+            if (ig.package) {
+                ig.package.forEach(function (p) {
+                    if (p.resource) {
+                        p.resource.forEach(function (r) {
+                            if (r.sourceReference && r.sourceReference.reference && r.sourceReference.reference.indexOf('/') > 0) {
+                                var split_1 = r.sourceReference.reference.split('/');
+                                if (!references.find(function (n) { return n.resourceType === split_1[0] && n.id.toLowerCase() === split_1[1].toLowerCase(); })) {
+                                    references.push({
+                                        resourceType: split_1[0],
+                                        id: split_1[1]
+                                    });
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+        }
+        else if (this.fhirVersion === 'r4') {
+            if (ig.definition && ig.definition.resource) {
+                ig.definition.resource
+                    .filter(function (r) { return r.reference && r.reference.refererence && r.reference.reference.split('/') > 0; })
+                    .forEach(function (r) {
+                    var split = r.reference.reference.split('/');
+                    if (!references.find(function (n) { return n.resourceType === split[0] && n.id.toLowerCase() === split[1].toLowerCase(); })) {
+                        references.push({
+                            resourceType: split[0],
+                            id: split[1]
+                        });
+                    }
+                });
+            }
+        }
+        return references;
+    };
     Transfer.prototype.execute = function () {
         return __awaiter(this, void 0, void 0, function () {
             var exporter, exporter, fhir;
@@ -276,23 +306,24 @@ var Transfer = (function () {
                     case 2:
                         _a.sent();
                         console.log('Done retrieving resources');
+                        this.fhirVersion = exporter.version;
                         this.exportedBundle = exporter.exportBundle;
-                        return [3, 8];
+                        return [3, 6];
                     case 3:
-                        if (!this.options.input_file) return [3, 7];
-                        if (!this.options.input_file.toLowerCase().endsWith('.xml')) return [3, 5];
+                        if (!this.options.input_file) return [3, 5];
                         return [4, export_1.Export.newExporter({
                                 fhir_base: this.options.destination,
                                 page_size: this.options.page_size
                             })];
                     case 4:
                         exporter = _a.sent();
-                        fhir = helper_1.getFhirInstance(exporter.version);
-                        console.log('Parsing input file');
-                        this.exportedBundle = fhir.xmlToObj(fs.readFileSync(this.options.input_file).toString());
-                        return [3, 6];
-                    case 5:
-                        if (this.options.input_file.toLowerCase().endsWith('.json')) {
+                        this.fhirVersion = exporter.version;
+                        if (this.options.input_file.toLowerCase().endsWith('.xml')) {
+                            fhir = helper_1.getFhirInstance(this.fhirVersion);
+                            console.log('Parsing input file');
+                            this.exportedBundle = fhir.xmlToObj(fs.readFileSync(this.options.input_file).toString());
+                        }
+                        else if (this.options.input_file.toLowerCase().endsWith('.json')) {
                             console.log('Parsing input file');
                             this.exportedBundle = JSON.parse(fs.readFileSync(this.options.input_file).toString());
                         }
@@ -300,31 +331,26 @@ var Transfer = (function () {
                             console.log('Unexpected file type for input_file');
                             return [2];
                         }
-                        _a.label = 6;
-                    case 6:
                         if (this.options.exclude) {
                             this.exportedBundle.entry = this.exportedBundle.entry.filter(function (e) {
                                 return _this.options.exclude.indexOf(e.resource.resourceType) < 0;
                             });
                         }
-                        return [3, 8];
-                    case 7:
+                        return [3, 6];
+                    case 5:
                         console.log('Either source or input_file must be specified');
                         return [2];
-                    case 8:
+                    case 6:
                         this.discoverResources();
                         this.exportedBundle.entry
-                            .filter(function (e) { return e.resource.resourceType === 'ImplementationGuide' && e.resource.definition && e.resource.definition.resource; })
+                            .filter(function (e) { return e.resource.resourceType === 'ImplementationGuide'; })
                             .map(function (e) { return e.resource; })
                             .forEach(function (ig) {
-                            var notFoundValueSets = ig.definition.resource
-                                .filter(function (r) { return r.reference && r.reference.reference && r.reference.reference.startsWith('ValueSet/'); })
-                                .map(function (r) {
-                                var split = r.reference.reference.split('/');
-                                return split[1];
-                            })
+                            var references = _this.getIgReferences(ig);
+                            var notFoundValueSets = references
+                                .filter(function (r) { return r.resourceType === 'ValueSet'; })
                                 .filter(function (r) {
-                                var found = _this.resources.find(function (n) { return n.resourceType === 'ValueSet' && n.id.toLowerCase() === r.toLowerCase(); });
+                                var found = _this.resources.find(function (n) { return n.resourceType === 'ValueSet' && n.id.toLowerCase() === r.id.toLowerCase(); });
                                 return !found;
                             });
                             notFoundValueSets.forEach(function (vsId) {
@@ -340,14 +366,10 @@ var Transfer = (function () {
                                     id: vsId
                                 });
                             });
-                            var notFoundBundles = ig.definition.resource
-                                .filter(function (r) { return r.reference && r.reference.reference && r.reference.reference.startsWith('Bundle/'); })
-                                .map(function (r) {
-                                var split = r.reference.reference.split('/');
-                                return split[1];
-                            })
+                            var notFoundBundles = references
+                                .filter(function (r) { return r.resourceType === 'Bundle'; })
                                 .filter(function (r) {
-                                var found = _this.resources.find(function (n) { return n.resourceType === 'Bundle' && n.id.toLowerCase() === r.toLowerCase(); });
+                                var found = _this.resources.find(function (n) { return n.resourceType === 'Bundle' && n.id.toLowerCase() === r.id.toLowerCase(); });
                                 return !found;
                             });
                             notFoundBundles.forEach(function (bId) {
@@ -365,7 +387,7 @@ var Transfer = (function () {
                             });
                         });
                         return [4, this.updateNext()];
-                    case 9:
+                    case 7:
                         _a.sent();
                         if (this.messages && this.messages.length > 0) {
                             console.log('Found the following issues when transferring:');

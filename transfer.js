@@ -129,8 +129,7 @@ var Transfer = (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (!(resource.resourceType === 'ImplementationGuide')) return [3, 4];
-                        references = this.getIgReferences(resource);
+                        references = this.getResourceReferences(resource);
                         if (references.length > 0) {
                             console.log("Found " + references.length + " references to store on the destination server first");
                         }
@@ -247,40 +246,27 @@ var Transfer = (function () {
             }
         });
     };
-    Transfer.prototype.getIgReferences = function (ig) {
+    Transfer.prototype.getResourceReferences = function (obj) {
         var references = [];
-        if (this.fhirVersion === 'dstu3') {
-            if (ig.package) {
-                ig.package.forEach(function (p) {
-                    if (p.resource) {
-                        p.resource.forEach(function (r) {
-                            if (r.sourceReference && r.sourceReference.reference && r.sourceReference.reference.indexOf('/') > 0) {
-                                var split_1 = r.sourceReference.reference.split('/');
-                                if (!references.find(function (n) { return n.resourceType === split_1[0] && n.id.toLowerCase() === split_1[1].toLowerCase(); })) {
-                                    references.push({
-                                        resourceType: split_1[0],
-                                        id: split_1[1]
-                                    });
-                                }
-                            }
-                        });
-                    }
-                });
+        if (obj instanceof Array) {
+            for (var i = 0; i < obj.length; i++) {
+                references = references.concat(this.getResourceReferences(obj[i]));
             }
         }
-        else if (this.fhirVersion === 'r4') {
-            if (ig.definition && ig.definition.resource) {
-                ig.definition.resource
-                    .filter(function (r) { return r.reference && r.reference.reference && r.reference.reference.split('/').length > 0; })
-                    .forEach(function (r) {
-                    var split = r.reference.reference.split('/');
-                    if (!references.find(function (n) { return n.resourceType === split[0] && n.id.toLowerCase() === split[1].toLowerCase(); })) {
-                        references.push({
-                            resourceType: split[0],
-                            id: split[1]
-                        });
-                    }
+        else if (typeof obj === 'object') {
+            if (obj.reference && typeof obj.reference === 'string' && obj.reference.split('/').length === 2) {
+                var split = obj.reference.split('/');
+                references.push({
+                    resourceType: split[0],
+                    id: split[1]
                 });
+            }
+            else {
+                var keys = Object.keys(obj);
+                for (var _i = 0, keys_1 = keys; _i < keys_1.length; _i++) {
+                    var key = keys_1[_i];
+                    references = references.concat(this.getResourceReferences(obj[key]));
+                }
             }
         }
         return references;
@@ -346,7 +332,7 @@ var Transfer = (function () {
                             .filter(function (e) { return e.resource.resourceType === 'ImplementationGuide'; })
                             .map(function (e) { return e.resource; })
                             .forEach(function (ig) {
-                            var references = _this.getIgReferences(ig);
+                            var references = _this.getResourceReferences(ig);
                             var notFoundReferences = references
                                 .filter(function (r) { return !_this.resources.find(function (n) { return n.resourceType === r.resourceType && n.id.toLowerCase() === r.id.toLowerCase(); }); });
                             notFoundReferences

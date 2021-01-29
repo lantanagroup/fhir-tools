@@ -108,21 +108,19 @@ export class Transfer {
     }
 
     private async updateReferences(resource: any) {
-        if (resource.resourceType === 'ImplementationGuide') {
-            const references = this.getIgReferences(resource);
+        const references = this.getResourceReferences(resource);
 
-            if (references.length > 0) {
-                console.log(`Found ${references.length} references to store on the destination server first`);
-            }
+        if (references.length > 0) {
+            console.log(`Found ${references.length} references to store on the destination server first`);
+        }
 
-            for (let reference of references) {
-                const foundResourceInfo = this.resources.find(r => r.resourceType === reference.resourceType && r.id === reference.id);
+        for (let reference of references) {
+            const foundResourceInfo = this.resources.find(r => r.resourceType === reference.resourceType && r.id === reference.id);
 
-                if (foundResourceInfo) {
-                    const foundResourceInfoIndex = this.resources.indexOf(foundResourceInfo);
-                    this.resources.splice(foundResourceInfoIndex, 1);
-                    await this.updateResource(foundResourceInfo.resourceType, foundResourceInfo.id);
-                }
+            if (foundResourceInfo) {
+                const foundResourceInfoIndex = this.resources.indexOf(foundResourceInfo);
+                this.resources.splice(foundResourceInfoIndex, 1);
+                await this.updateResource(foundResourceInfo.resourceType, foundResourceInfo.id);
             }
         }
     }
@@ -184,42 +182,25 @@ export class Transfer {
             });
     }
 
-    private getIgReferences(ig: any): ResourceInfo[] {
-        const references: ResourceInfo[] = [];
+    private getResourceReferences(obj: any): ResourceInfo[] {
+        let references: ResourceInfo[] = [];
 
-        if (this.fhirVersion === 'dstu3') {
-            if (ig.package) {
-                ig.package.forEach(p => {
-                    if (p.resource) {
-                        p.resource.forEach(r => {
-                            if (r.sourceReference && r.sourceReference.reference && r.sourceReference.reference.indexOf('/') > 0) {
-                                const split = r.sourceReference.reference.split('/');
-
-                                if (!references.find(n => n.resourceType === split[0] && n.id.toLowerCase() === split[1].toLowerCase())) {
-                                    references.push({
-                                        resourceType: split[0],
-                                        id: split[1]
-                                    });
-                                }
-                            }
-                        });
-                    }
-                });
+        if (obj instanceof Array) {
+            for (let i = 0; i < obj.length; i++) {
+                references = references.concat(this.getResourceReferences(obj[i]));
             }
-        } else if (this.fhirVersion === 'r4') {
-            if (ig.definition && ig.definition.resource) {
-                ig.definition.resource
-                    .filter(r => r.reference && r.reference.reference && r.reference.reference.split('/').length > 0)
-                    .forEach(r => {
-                        const split = r.reference.reference.split('/');
-
-                        if (!references.find(n => n.resourceType === split[0] && n.id.toLowerCase() === split[1].toLowerCase())) {
-                            references.push({
-                                resourceType: split[0],
-                                id: split[1]
-                            });
-                        }
-                    });
+        } else if (typeof obj === 'object') {
+            if (obj.reference && typeof obj.reference === 'string' && obj.reference.split('/').length === 2) {
+                const split = obj.reference.split('/');
+                references.push({
+                    resourceType: split[0],
+                    id: split[1]
+                });
+            } else {
+                const keys = Object.keys(obj);
+                for (let key of keys) {
+                    references = references.concat(this.getResourceReferences(obj[key]));
+                }
             }
         }
 
@@ -282,7 +263,7 @@ export class Transfer {
             .filter(e => e.resource.resourceType === 'ImplementationGuide')
             .map(e => e.resource)
             .forEach(ig => {
-                const references = this.getIgReferences(ig);
+                const references = this.getResourceReferences(ig);
                 const notFoundReferences = references
                     .filter(r => !this.resources.find(n => n.resourceType === r.resourceType && n.id.toLowerCase() === r.id.toLowerCase()));
 

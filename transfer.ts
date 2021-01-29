@@ -96,7 +96,10 @@ export class Transfer {
         this.exportedBundle.entry.splice(0, 1);
         const nextResource = nextEntry.resource;
 
-        console.log(`Putting ${nextResource.resourceType}/${nextResource.id} onto the destination FHIR server. ${this.exportedBundle.entry.length} left...`);
+        const identifier = this.options.history ?
+            `${nextResource.resourceType}-${nextResource.id}-${nextResource.meta.versionId}` :
+            `${nextResource.resourceType}-${nextResource.id}`;
+        console.log(`Putting ${identifier} onto the destination FHIR server. ${this.exportedBundle.entry.length} left...`);
 
         try {
             await this.updateResource(this.options.fhir2_base, nextResource);

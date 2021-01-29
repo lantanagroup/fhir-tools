@@ -116,7 +116,7 @@ var Transfer = (function () {
     };
     Transfer.prototype.updateNext = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var nextEntry, nextResource, ex_1;
+            var nextEntry, nextResource, identifier, ex_1;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -126,7 +126,10 @@ var Transfer = (function () {
                         nextEntry = this.exportedBundle.entry[0];
                         this.exportedBundle.entry.splice(0, 1);
                         nextResource = nextEntry.resource;
-                        console.log("Putting " + nextResource.resourceType + "/" + nextResource.id + " onto the destination FHIR server. " + this.exportedBundle.entry.length + " left...");
+                        identifier = this.options.history ?
+                            nextResource.resourceType + "-" + nextResource.id + "-" + nextResource.meta.versionId :
+                            nextResource.resourceType + "-" + nextResource.id;
+                        console.log("Putting " + identifier + " onto the destination FHIR server. " + this.exportedBundle.entry.length + " left...");
                         _a.label = 1;
                     case 1:
                         _a.trys.push([1, 3, , 4]);

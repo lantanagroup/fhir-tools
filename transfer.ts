@@ -3,8 +3,8 @@ import {Export} from "./export";
 import {IBundle} from "./fhir/bundle";
 import * as path from "path";
 import * as fs from "fs";
-import {ParseConformance} from "fhir/parseConformance";
 import {getFhirInstance} from "./helper";
+import * as util from 'util';
 
 export interface TransferOptions {
     source?: string;
@@ -18,6 +18,7 @@ export interface TransferOptions {
 interface ResourceInfo {
     resourceType: string;
     id: string;
+    reference: any;
 }
 
 export class Transfer {
@@ -30,6 +31,7 @@ export class Transfer {
     }[] = [];
     private resources: ResourceInfo[];
     private fhirVersion: 'dstu3'|'r4';
+    private sleep = util.promisify(setTimeout);
 
     constructor(options: TransferOptions) {
         this.options = options;
@@ -37,6 +39,8 @@ export class Transfer {
 
     private async requestUpdate(fhirBase: string, resource: any) {
         const url = fhirBase + (fhirBase.endsWith('/') ? '' : '/') + resource.resourceType + '/' + resource.id;
+
+        resource.id = resource.id.trim();
 
         if (resource.resourceType === 'Bundle' && !resource.type) {
             resource.type = 'collection';
@@ -67,7 +71,7 @@ export class Transfer {
                         });
                     }
 
-                    reject(err);
+                    resolve(err);
                 } else {
                     if (!body.resourceType) {
                         this.messages.push({
@@ -91,7 +95,7 @@ export class Transfer {
                             response: body
                         });
 
-                        reject(message);
+                        resolve(message);
                     } else if (body.resourceType !== resource.resourceType) {
                         this.messages.push({
                             message: 'Unexpected resource returned from server when putting resource on destination: ' + JSON.stringify(body),
@@ -132,6 +136,15 @@ export class Transfer {
         console.log(`Putting resource ${resourceType}/${id} on destination server (${versionEntries.length} versions)`);
 
         for (let versionEntry of versionEntries) {
+            const resourceReferences = this.getResourceReferences(versionEntry.resource);
+
+            // Fix references that are formatted incorrectly
+            for (let resourceReference of resourceReferences) {
+                if (resourceReference.resourceType.trim() !== resourceReference.resourceType || resourceReference.id.trim() !== resourceReference.id) {
+                    resourceReference.reference.reference = resourceReference.resourceType.trim() + '/' + resourceReference.id.trim();
+                }
+            }
+
             await this.updateReferences(versionEntry.resource);
 
             // Remove extensions from Binary.data that do not have a value for Binary.data
@@ -147,8 +160,27 @@ export class Transfer {
                 versionEntry.resource.type = 'collection';
             }
 
+            // Delete version property from historical ValueSet entries due to HAPI error:
+            // Can not create multiple ValueSet resources with ValueSet.url XX and ValueSet.version "1", already have one with resource ID: YY
+            if (versionEntry.resource.resourceType === 'ValueSet' && versionEntry !== versionEntries[versionEntries.length - 1]) {
+                delete versionEntry.resource.version;
+            }
+
+            // Make sure the status of MedicationAdministration is valid
+            if (versionEntry.resource.resourceType === 'MedicationAdministration') {
+                const validStatuses = ['in-progress', 'not-done', 'on-hold', 'completed', 'entered-in-error', 'stopped', 'unknown'];
+
+                if (validStatuses.indexOf(versionEntry.resource.status) < 0) {
+                    versionEntry.resource.status = 'unknown';
+                }
+            }
+
             console.log(`Putting resource ${resourceType}/${id}#${versionEntry.resource.meta?.versionId || '1'}...`);
+
             await this.requestUpdate(this.options.destination, versionEntry.resource);
+            //await this.sleep(300);
+
+            console.log(`Done putting resource ${resourceType}/${id}#${versionEntry.resource.meta?.versionId || '1'}`);
         }
     }
 
@@ -185,6 +217,8 @@ export class Transfer {
     private getResourceReferences(obj: any): ResourceInfo[] {
         let references: ResourceInfo[] = [];
 
+        if (!obj) return references;
+
         if (obj instanceof Array) {
             for (let i = 0; i < obj.length; i++) {
                 references = references.concat(this.getResourceReferences(obj[i]));
@@ -194,7 +228,8 @@ export class Transfer {
                 const split = obj.reference.split('/');
                 references.push({
                     resourceType: split[0],
-                    id: split[1]
+                    id: split[1],
+                    reference: obj
                 });
             } else {
                 const keys = Object.keys(obj);
@@ -260,7 +295,6 @@ export class Transfer {
         // add a placeholder value set to the Bundle with a URL. This block can be removed after this HAPI issue is fixed:
         // https://github.com/hapifhir/hapi-fhir/issues/2332
         this.exportedBundle.entry
-            .filter(e => e.resource.resourceType === 'ImplementationGuide')
             .map(e => e.resource)
             .forEach(ig => {
                 const references = this.getResourceReferences(ig);
@@ -268,7 +302,7 @@ export class Transfer {
                     .filter(r => !this.resources.find(n => n.resourceType === r.resourceType && n.id.toLowerCase() === r.id.toLowerCase()));
 
                 notFoundReferences
-                    .filter(r => ['Bundle', 'ValueSet', 'ConceptMap'].indexOf(r.resourceType) >= 0)
+                    .filter(r => ['Bundle', 'ValueSet', 'ConceptMap', 'SearchParameter'].indexOf(r.resourceType) >= 0)
                     .forEach(ref => {
                         const mockResource: any = {
                             resourceType: ref.resourceType,
@@ -279,6 +313,8 @@ export class Transfer {
                             mockResource.url = ig.url + `/${ref.resourceType}/${ref.id}`;
                         } else if (ref.resourceType === 'Bundle') {
                             mockResource.type = 'collection';
+                        } else if (ref.resourceType === 'SearchParameter') {
+                            mockResource.status = 'unknown';
                         }
 
                         this.exportedBundle.entry.push({
@@ -288,7 +324,45 @@ export class Transfer {
                     });
             });
 
+        // Find all subscriptions and make sure all the versions of the subscriptions have their status set to "off"
+        // Keep track of all the Subscriptions that were on so that they can later be turned *back* on.
+        // The subscription's considered "active" only if the most recent version of the subscription is active.
+        const subscriptions = this.resources.filter(r => r.resourceType === 'Subscription');
+        const activeSubscriptions = subscriptions
+            .filter(r => {
+                const resourceVersions = this.exportedBundle.entry
+                    .filter(e => e.resource.resourceType === r.resourceType && e.resource.id.toLowerCase() === r.id.toLowerCase());
+                const activeVersions = resourceVersions.filter(rv => rv.resource.status === 'active' || rv.resource.status === 'requested');
+
+                if (activeVersions.length > 0) {
+                    return activeVersions.indexOf(resourceVersions[resourceVersions.length - 1]) >= 0;
+                }
+            });
+        subscriptions.forEach(r => {
+            // Make sure all versions of the Subscription resources are set to non-active status
+            this.exportedBundle.entry
+                .filter(e => e.resource.resourceType === r.resourceType && e.resource.id.toLowerCase() === r.id.toLowerCase())
+                .filter(rv => rv.resource.status === 'active' || rv.resource.status === 'requested')
+                .forEach(rv => rv.resource.status = 'off');
+        })
+
+        // Start processing the resource queue
         await this.updateNext();
+
+        // Turn the status of active subscriptions back on
+        for (let activeSubscription of activeSubscriptions) {
+            const resourceVersions = this.exportedBundle.entry
+                .filter(e => e.resource.resourceType === activeSubscription.resourceType && e.resource.id.toLowerCase() === activeSubscription.id.toLowerCase());
+            const lastVersion = resourceVersions[resourceVersions.length - 1];
+            lastVersion.resource.status = 'requested';
+
+            console.log(`Updating the status of Subscription/${lastVersion.resource.id} to turn the subscription on`);
+            await this.requestUpdate(this.options.destination, lastVersion.resource);
+            console.log(`Done updating the status of Subscription/${lastVersion.resource.id}`);
+        }
+
+        // For debugging a specific resource's issues
+        //await this.updateResource('OrganizationAffiliation', 'PDXOrgAffiliationGroupFacility102');
 
         if (this.messages && this.messages.length > 0) {
             console.log('Found the following issues when transferring:');
@@ -297,14 +371,14 @@ export class Transfer {
                 fs.mkdirSync(path.join(__dirname, 'issues'));
             }
 
-            this.messages.forEach(m => {
-                const identifier = this.options.history ?
-                    `${m.resource.resourceType}-${m.resource.id}-${m.resource.meta.versionId}` :
-                    `${m.resource.resourceType}-${m.resource.id}`;
-                console.log(`${identifier}: ${m.message}`);
-                const fileName = `${identifier}.json`;
-                fs.writeFileSync(path.join(__dirname, 'issues', fileName), JSON.stringify(m.resource, null, '\t'));
-            });
+            const issuesPath = path.join(__dirname, 'issues-' +
+                new Date().toISOString()
+                    .replace(/\./g, '')
+                    .replace('T', '_')
+                    .replace(/[:]/g, '-')
+                    .substring(0, 19) +
+                '.json');
+            fs.writeFileSync(issuesPath, JSON.stringify(this.messages, null, '\t'));
         }
     }
 }

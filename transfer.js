@@ -42,9 +42,11 @@ var export_1 = require("./export");
 var path = require("path");
 var fs = require("fs");
 var helper_1 = require("./helper");
+var util = require("util");
 var Transfer = (function () {
     function Transfer(options) {
         this.messages = [];
+        this.sleep = util.promisify(setTimeout);
         this.options = options;
     }
     Transfer.prototype.requestUpdate = function (fhirBase, resource) {
@@ -53,6 +55,7 @@ var Transfer = (function () {
             var _this = this;
             return __generator(this, function (_a) {
                 url = fhirBase + (fhirBase.endsWith('/') ? '' : '/') + resource.resourceType + '/' + resource.id;
+                resource.id = resource.id.trim();
                 if (resource.resourceType === 'Bundle' && !resource.type) {
                     resource.type = 'collection';
                 }
@@ -80,7 +83,7 @@ var Transfer = (function () {
                                         response: body
                                     });
                                 }
-                                reject(err);
+                                resolve(err);
                             }
                             else {
                                 if (!body.resourceType) {
@@ -104,7 +107,7 @@ var Transfer = (function () {
                                         resource: resource,
                                         response: body
                                     });
-                                    reject(message);
+                                    resolve(message);
                                 }
                                 else if (body.resourceType !== resource.resourceType) {
                                     _this.messages.push({
@@ -169,23 +172,30 @@ var Transfer = (function () {
         });
     };
     Transfer.prototype.updateResource = function (resourceType, id) {
-        var _a;
+        var _a, _b;
         return __awaiter(this, void 0, void 0, function () {
-            var versionEntries, _i, versionEntries_1, versionEntry;
-            return __generator(this, function (_b) {
-                switch (_b.label) {
+            var versionEntries, _i, versionEntries_1, versionEntry, resourceReferences, _c, resourceReferences_1, resourceReference, validStatuses;
+            return __generator(this, function (_d) {
+                switch (_d.label) {
                     case 0:
                         versionEntries = this.exportedBundle.entry
                             .filter(function (e) { return e.resource.resourceType === resourceType && e.resource.id === id; });
                         console.log("Putting resource " + resourceType + "/" + id + " on destination server (" + versionEntries.length + " versions)");
                         _i = 0, versionEntries_1 = versionEntries;
-                        _b.label = 1;
+                        _d.label = 1;
                     case 1:
                         if (!(_i < versionEntries_1.length)) return [3, 5];
                         versionEntry = versionEntries_1[_i];
+                        resourceReferences = this.getResourceReferences(versionEntry.resource);
+                        for (_c = 0, resourceReferences_1 = resourceReferences; _c < resourceReferences_1.length; _c++) {
+                            resourceReference = resourceReferences_1[_c];
+                            if (resourceReference.resourceType.trim() !== resourceReference.resourceType || resourceReference.id.trim() !== resourceReference.id) {
+                                resourceReference.reference.reference = resourceReference.resourceType.trim() + '/' + resourceReference.id.trim();
+                            }
+                        }
                         return [4, this.updateReferences(versionEntry.resource)];
                     case 2:
-                        _b.sent();
+                        _d.sent();
                         if (versionEntry.resource.contained) {
                             versionEntry.resource.contained
                                 .filter(function (c) { return c.resourceType === 'Binary' && !c.data && c._data; })
@@ -194,11 +204,21 @@ var Transfer = (function () {
                         if (versionEntry.resource.resourceType === 'Bundle' && !versionEntry.resource.type) {
                             versionEntry.resource.type = 'collection';
                         }
+                        if (versionEntry.resource.resourceType === 'ValueSet' && versionEntry !== versionEntries[versionEntries.length - 1]) {
+                            delete versionEntry.resource.version;
+                        }
+                        if (versionEntry.resource.resourceType === 'MedicationAdministration') {
+                            validStatuses = ['in-progress', 'not-done', 'on-hold', 'completed', 'entered-in-error', 'stopped', 'unknown'];
+                            if (validStatuses.indexOf(versionEntry.resource.status) < 0) {
+                                versionEntry.resource.status = 'unknown';
+                            }
+                        }
                         console.log("Putting resource " + resourceType + "/" + id + "#" + (((_a = versionEntry.resource.meta) === null || _a === void 0 ? void 0 : _a.versionId) || '1') + "...");
                         return [4, this.requestUpdate(this.options.destination, versionEntry.resource)];
                     case 3:
-                        _b.sent();
-                        _b.label = 4;
+                        _d.sent();
+                        console.log("Done putting resource " + resourceType + "/" + id + "#" + (((_b = versionEntry.resource.meta) === null || _b === void 0 ? void 0 : _b.versionId) || '1'));
+                        _d.label = 4;
                     case 4:
                         _i++;
                         return [3, 1];
@@ -248,6 +268,8 @@ var Transfer = (function () {
     };
     Transfer.prototype.getResourceReferences = function (obj) {
         var references = [];
+        if (!obj)
+            return references;
         if (obj instanceof Array) {
             for (var i = 0; i < obj.length; i++) {
                 references = references.concat(this.getResourceReferences(obj[i]));
@@ -258,7 +280,8 @@ var Transfer = (function () {
                 var split = obj.reference.split('/');
                 references.push({
                     resourceType: split[0],
-                    id: split[1]
+                    id: split[1],
+                    reference: obj
                 });
             }
             else {
@@ -273,7 +296,7 @@ var Transfer = (function () {
     };
     Transfer.prototype.execute = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var exporter, exporter, fhir;
+            var exporter, exporter, fhir, subscriptions, activeSubscriptions, _loop_2, this_2, _i, activeSubscriptions_1, activeSubscription, issuesPath;
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
@@ -329,14 +352,13 @@ var Transfer = (function () {
                     case 6:
                         this.discoverResources();
                         this.exportedBundle.entry
-                            .filter(function (e) { return e.resource.resourceType === 'ImplementationGuide'; })
                             .map(function (e) { return e.resource; })
                             .forEach(function (ig) {
                             var references = _this.getResourceReferences(ig);
                             var notFoundReferences = references
                                 .filter(function (r) { return !_this.resources.find(function (n) { return n.resourceType === r.resourceType && n.id.toLowerCase() === r.id.toLowerCase(); }); });
                             notFoundReferences
-                                .filter(function (r) { return ['Bundle', 'ValueSet', 'ConceptMap'].indexOf(r.resourceType) >= 0; })
+                                .filter(function (r) { return ['Bundle', 'ValueSet', 'ConceptMap', 'SearchParameter'].indexOf(r.resourceType) >= 0; })
                                 .forEach(function (ref) {
                                 var mockResource = {
                                     resourceType: ref.resourceType,
@@ -348,28 +370,79 @@ var Transfer = (function () {
                                 else if (ref.resourceType === 'Bundle') {
                                     mockResource.type = 'collection';
                                 }
+                                else if (ref.resourceType === 'SearchParameter') {
+                                    mockResource.status = 'unknown';
+                                }
                                 _this.exportedBundle.entry.push({
                                     resource: mockResource
                                 });
                                 _this.resources.push(ref);
                             });
                         });
+                        subscriptions = this.resources.filter(function (r) { return r.resourceType === 'Subscription'; });
+                        activeSubscriptions = subscriptions
+                            .filter(function (r) {
+                            var resourceVersions = _this.exportedBundle.entry
+                                .filter(function (e) { return e.resource.resourceType === r.resourceType && e.resource.id.toLowerCase() === r.id.toLowerCase(); });
+                            var activeVersions = resourceVersions.filter(function (rv) { return rv.resource.status === 'active' || rv.resource.status === 'requested'; });
+                            if (activeVersions.length > 0) {
+                                return activeVersions.indexOf(resourceVersions[resourceVersions.length - 1]) >= 0;
+                            }
+                        });
+                        subscriptions.forEach(function (r) {
+                            _this.exportedBundle.entry
+                                .filter(function (e) { return e.resource.resourceType === r.resourceType && e.resource.id.toLowerCase() === r.id.toLowerCase(); })
+                                .filter(function (rv) { return rv.resource.status === 'active' || rv.resource.status === 'requested'; })
+                                .forEach(function (rv) { return rv.resource.status = 'off'; });
+                        });
                         return [4, this.updateNext()];
                     case 7:
                         _a.sent();
+                        _loop_2 = function (activeSubscription) {
+                            var resourceVersions, lastVersion;
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0:
+                                        resourceVersions = this_2.exportedBundle.entry
+                                            .filter(function (e) { return e.resource.resourceType === activeSubscription.resourceType && e.resource.id.toLowerCase() === activeSubscription.id.toLowerCase(); });
+                                        lastVersion = resourceVersions[resourceVersions.length - 1];
+                                        lastVersion.resource.status = 'requested';
+                                        console.log("Updating the status of Subscription/" + lastVersion.resource.id + " to turn the subscription on");
+                                        return [4, this_2.requestUpdate(this_2.options.destination, lastVersion.resource)];
+                                    case 1:
+                                        _a.sent();
+                                        console.log("Done updating the status of Subscription/" + lastVersion.resource.id);
+                                        return [2];
+                                }
+                            });
+                        };
+                        this_2 = this;
+                        _i = 0, activeSubscriptions_1 = activeSubscriptions;
+                        _a.label = 8;
+                    case 8:
+                        if (!(_i < activeSubscriptions_1.length)) return [3, 11];
+                        activeSubscription = activeSubscriptions_1[_i];
+                        return [5, _loop_2(activeSubscription)];
+                    case 9:
+                        _a.sent();
+                        _a.label = 10;
+                    case 10:
+                        _i++;
+                        return [3, 8];
+                    case 11:
                         if (this.messages && this.messages.length > 0) {
                             console.log('Found the following issues when transferring:');
                             if (!fs.existsSync(path.join(__dirname, 'issues'))) {
                                 fs.mkdirSync(path.join(__dirname, 'issues'));
                             }
-                            this.messages.forEach(function (m) {
-                                var identifier = _this.options.history ?
-                                    m.resource.resourceType + "-" + m.resource.id + "-" + m.resource.meta.versionId :
-                                    m.resource.resourceType + "-" + m.resource.id;
-                                console.log(identifier + ": " + m.message);
-                                var fileName = identifier + ".json";
-                                fs.writeFileSync(path.join(__dirname, 'issues', fileName), JSON.stringify(m.resource, null, '\t'));
-                            });
+                            issuesPath = path.join(__dirname, 'issues-' +
+                                new Date().toISOString()
+                                    .replace(/\./g, '')
+                                    .replace('T', '_')
+                                    .replace(/[:]/g, '-')
+                                    .substring(0, 19) +
+                                '.json');
+                            fs.writeFileSync(issuesPath, JSON.stringify(this.messages, null, '\t'));
                         }
                         return [2];
                 }

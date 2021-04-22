@@ -18,6 +18,7 @@ export class ExportOptions {
     public exclude?: string[];
     public history_queue? = 10;
     public xml? = false;
+    public summary? = false;
 }
 
 export class Export {
@@ -195,6 +196,10 @@ export class Export {
         const resourceType = this.resourceTypes.pop();
         let nextUrl = urljoin(this.options.fhir_base, resourceType);
         nextUrl += '?_count=' + this.options.page_size.toString();
+
+        if (this.options.summary) {
+            nextUrl += `&_elements=${resourceType}.id`;
+        }
 
         console.log(`----------------------------\r\nStarting retrieve for ${resourceType}`);
 

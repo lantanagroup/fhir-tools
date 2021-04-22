@@ -35,12 +35,10 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var __spreadArrays = (this && this.__spreadArrays) || function () {
-    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
-    for (var r = Array(s), k = 0, i = 0; i < il; i++)
-        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
-            r[k] = a[j];
-    return r;
+var __spreadArray = (this && this.__spreadArray) || function (to, from) {
+    for (var i = 0, il = from.length, j = to.length; i < il; i++, j++)
+        to[j] = from[i];
+    return to;
 };
 exports.__esModule = true;
 exports.Export = exports.ExportOptions = void 0;
@@ -54,6 +52,7 @@ var ExportOptions = (function () {
         this.ig = false;
         this.history_queue = 10;
         this.xml = false;
+        this.summary = false;
     }
     return ExportOptions;
 }());
@@ -248,6 +247,9 @@ var Export = (function () {
                         resourceType = this.resourceTypes.pop();
                         nextUrl = urljoin(this.options.fhir_base, resourceType);
                         nextUrl += '?_count=' + this.options.page_size.toString();
+                        if (this.options.summary) {
+                            nextUrl += "&_elements=" + resourceType + ".id";
+                        }
                         console.log("----------------------------\r\nStarting retrieve for " + resourceType);
                         return [4, this.getBundle(nextUrl, resourceType)];
                     case 1:
@@ -314,8 +316,8 @@ var Export = (function () {
                             .map(function (tbe) { return tbe.resource; });
                         _loop_1 = function (ig) {
                             var igResourcesBundle, igResourceReferences, igResourceReferences_1, foundIgResources, missingIgResources;
-                            return __generator(this, function (_a) {
-                                switch (_a.label) {
+                            return __generator(this, function (_g) {
+                                switch (_g.label) {
                                     case 0:
                                         igResourcesBundle = void 0;
                                         console.log("Searching for missing resources for the IG " + ig.id);
@@ -325,7 +327,7 @@ var Export = (function () {
                                             .map(function (r) { return r.reference; });
                                         return [4, this_1.getIgResources(igResourceReferences)];
                                     case 1:
-                                        igResourcesBundle = _a.sent();
+                                        igResourcesBundle = _g.sent();
                                         return [3, 4];
                                     case 2:
                                         if (!(this_1.version === 'dstu3')) return [3, 4];
@@ -338,8 +340,8 @@ var Export = (function () {
                                         });
                                         return [4, this_1.getIgResources(igResourceReferences_1)];
                                     case 3:
-                                        igResourcesBundle = _a.sent();
-                                        _a.label = 4;
+                                        igResourcesBundle = _g.sent();
+                                        _g.label = 4;
                                     case 4:
                                         if (igResourcesBundle && igResourcesBundle.entry) {
                                             foundIgResources = igResourcesBundle.entry
@@ -477,7 +479,7 @@ var Export = (function () {
                             }
                             if (replacementHistory.length > 1) {
                                 var exportEntryIndex = exportBundle.entry.indexOf(exportEntry);
-                                (_a = exportBundle.entry).splice.apply(_a, __spreadArrays([exportEntryIndex, 1], replacementHistory));
+                                (_a = exportBundle.entry).splice.apply(_a, __spreadArray([exportEntryIndex, 1], replacementHistory));
                                 console.log("Added " + (replacementHistory.length - 1) + " history items for " + exportEntry.resource.resourceType + "/" + exportEntry.resource.id);
                             }
                             resolve();

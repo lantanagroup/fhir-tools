@@ -4,6 +4,7 @@ import {Export, ExportOptions} from './export';
 import {FixIds} from './fixids';
 import {Transfer} from "./transfer";
 import {Compare} from "./compare";
+import {Delete, DeleteOptions} from "./delete";
 
 class FixIdsOptions {
     public file_path: string;
@@ -25,21 +26,11 @@ export class Main {
                 fixids.fix();
                 fixids.save();
             })
-            .command('transfer <destination>', 'Transfer resources from one server to another', (yargs: any) => {
+            .command('delete <fhir_base>', 'Delete resources from a FHIR server', (yargs: any) => {
                 yargs
-                    .positional('destination', {
+                    .positional('fhir_base', {
                         type: 'string',
-                        describe: 'The FHIR server base of the destination FHIR server (where resources are stored)'
-                    })
-                    .option('source', {
-                        alias: 'f',
-                        type: 'string',
-                        describe: 'The base URL of the source FHIR server (where resources are retrieved)'
-                    })
-                    .option('input_file', {
-                        alias: 'i',
-                        type: 'string',
-                        describe: 'Path to a file that represents the export of the source FHIR server'
+                        describe: 'The base url of the FHIR server'
                     })
                     .option('page_size', {
                         alias: 's',
@@ -47,16 +38,55 @@ export class Main {
                         describe: 'The size of results to return per page',
                         default: 50
                     })
+                    .option('expunge', {
+                        alias: 'e',
+                        boolean: true,
+                        description: 'Indicates if $expunge should be executed on the FHIR server after deleting resources'
+                    });
+            }, (argv: DeleteOptions) => {
+                const deleter = new Delete(argv);
+                deleter.execute();
+            })
+            .command('import <destination> <input_file>', 'Import resources from a Bundle file onto the specified server', (yargs: any) => {
+                yargs
+                    .positional('destination', {
+                        type: 'string',
+                        describe: 'The FHIR server base of the destination FHIR server (where resources are stored)'
+                    })
+                    .positional('input_file', {
+                        type: 'string',
+                        describe: 'Path to a file that represents the export of the source FHIR server'
+                    });
+            }, (argv: any) => {
+                const transfer = new Transfer(argv);
+                transfer.execute();
+            })
+            .command('transfer <destination> <source>', 'Transfer resources from one server to another', (yargs: any) => {
+                yargs
+                    .positional('destination', {
+                        type: 'string',
+                        describe: 'The FHIR server base of the destination FHIR server (where resources are stored)'
+                    })
+                    .positional('source', {
+                        type: 'string',
+                        describe: 'The base URL of the source FHIR server (where resources are retrieved)'
+                    })
+                    .option('page_size', {
+                        alias: 's',
+                        type: 'number',
+                        describe: 'The size of results to return per page when requesting resources from the source server',
+                        default: 50
+                    })
                     .option('history', {
                         alias: 'h',
                         type: 'boolean',
-                        describe: 'Whether ot include the history of each resource'
+                        describe: 'Whether ot include the history of each resource when requesting resources from the source server'
                     })
                     .option('exclude', {
                         alias: 'e',
                         array: true,
                         type: 'string',
-                        description: 'Resource types that should be excluded from the export (ex: AuditEvent)'
+                        description: 'Resource types that should be excluded from the export (ex: AuditEvent) of the source server'
                     });
             }, (argv: any) => {
                 const transfer = new Transfer(argv);

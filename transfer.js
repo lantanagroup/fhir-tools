@@ -138,8 +138,8 @@ var Transfer = (function () {
                         }
                         _loop_1 = function (reference) {
                             var foundResourceInfo, foundResourceInfoIndex;
-                            return __generator(this, function (_a) {
-                                switch (_a.label) {
+                            return __generator(this, function (_b) {
+                                switch (_b.label) {
                                     case 0:
                                         foundResourceInfo = this_1.resources.find(function (r) { return r.resourceType === reference.resourceType && r.id === reference.id; });
                                         if (!foundResourceInfo) return [3, 2];
@@ -147,8 +147,8 @@ var Transfer = (function () {
                                         this_1.resources.splice(foundResourceInfoIndex, 1);
                                         return [4, this_1.updateResource(foundResourceInfo.resourceType, foundResourceInfo.id)];
                                     case 1:
-                                        _a.sent();
-                                        _a.label = 2;
+                                        _b.sent();
+                                        _b.label = 2;
                                     case 2: return [2];
                                 }
                             });
@@ -400,8 +400,8 @@ var Transfer = (function () {
                         _a.sent();
                         _loop_2 = function (activeSubscription) {
                             var resourceVersions, lastVersion;
-                            return __generator(this, function (_a) {
-                                switch (_a.label) {
+                            return __generator(this, function (_b) {
+                                switch (_b.label) {
                                     case 0:
                                         resourceVersions = this_2.exportedBundle.entry
                                             .filter(function (e) { return e.resource.resourceType === activeSubscription.resourceType && e.resource.id.toLowerCase() === activeSubscription.id.toLowerCase(); });
@@ -410,7 +410,7 @@ var Transfer = (function () {
                                         console.log("Updating the status of Subscription/" + lastVersion.resource.id + " to turn the subscription on");
                                         return [4, this_2.requestUpdate(this_2.options.destination, lastVersion.resource)];
                                     case 1:
-                                        _a.sent();
+                                        _b.sent();
                                         console.log("Done updating the status of Subscription/" + lastVersion.resource.id);
                                         return [2];
                                 }

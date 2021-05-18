@@ -43,6 +43,7 @@ var fixids_1 = require("./fixids");
 var transfer_1 = require("./transfer");
 var compare_1 = require("./compare");
 var delete_1 = require("./delete");
+var bulk_import_1 = require("./bulk-import");
 var FixIdsOptions = (function () {
     function FixIdsOptions() {
     }
@@ -97,6 +98,20 @@ var Main = (function () {
         }, function (argv) {
             var transfer = new transfer_1.Transfer(argv);
             transfer.execute();
+        })
+            .command('bulk-import <destination> <directory>', 'Import resources from bulk ndjson files in a directory', function (yargs) {
+            yargs
+                .positional('destination', {
+                type: 'string',
+                describe: 'The FHIR server base of the destination FHIR server (where resources are stored)'
+            })
+                .positional('directory', {
+                type: 'string',
+                describe: 'Path to a directory where .ndjson files are stored to be imported'
+            });
+        }, function (argv) {
+            var bulkImport = new bulk_import_1.BulkImport(argv);
+            bulkImport.execute();
         })
             .command('transfer <destination> <source>', 'Transfer resources from one server to another', function (yargs) {
             yargs

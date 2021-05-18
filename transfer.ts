@@ -10,7 +10,7 @@ export interface TransferOptions {
     source?: string;
     input_file?: string;
     destination: string;
-    page_size: number;
+    page_size?: number;
     history?: boolean;
     exclude?: string[];
 }
@@ -22,14 +22,17 @@ interface ResourceInfo {
 }
 
 export class Transfer {
+    private readonly _bundleEntryCount = 500;
+
     private options: TransferOptions;
-    private exportedBundle: IBundle;
+    public exportedBundle: IBundle;
     private messages: {
         message: string;
         resource: any;
         response: any;
     }[] = [];
-    private resources: ResourceInfo[];
+    private resources: { [key: string]: { info: ResourceInfo, versions: any[] } };
+    private sortedResources: any[];
     private fhirVersion: 'dstu3'|'r4';
     private sleep = util.promisify(setTimeout);
 
@@ -37,17 +40,21 @@ export class Transfer {
         this.options = options;
     }
 
-    private async requestUpdate(fhirBase: string, resource: any) {
-        const url = fhirBase + (fhirBase.endsWith('/') ? '' : '/') + resource.resourceType + '/' + resource.id;
+    private async requestUpdate(fhirBase: string, resource: any, isTransaction = false) {
+        let url = fhirBase;
 
-        resource.id = resource.id.trim();
+        if (!isTransaction) {
+            url += (fhirBase.endsWith('/') ? '' : '/') + resource.resourceType + '/' + resource.id;
 
-        if (resource.resourceType === 'Bundle' && !resource.type) {
-            resource.type = 'collection';
+            resource.id = resource.id.trim();
+
+            if (resource.resourceType === 'Bundle' && !resource.type) {
+                resource.type = 'collection';
+            }
         }
 
         return new Promise((resolve, reject) => {
-            request({ url: url, method: 'PUT', body: resource, json: true }, (err, response, body) => {
+            request({ url: url, method: isTransaction ? 'POST' : 'PUT', body: resource, json: true }, (err, response, body) => {
                 if (err) {
                     if (body && body.resourceType === 'OperationOutcome' && !body.id) {
                         let message = JSON.stringify(body);
@@ -119,12 +126,11 @@ export class Transfer {
         }
 
         for (let reference of references) {
-            const foundResourceInfo = this.resources.find(r => r.resourceType === reference.resourceType && r.id === reference.id);
+            const foundResourceInfo = this.resources[reference.resourceType + '/' + reference.id];
 
             if (foundResourceInfo) {
-                const foundResourceInfoIndex = this.resources.indexOf(foundResourceInfo);
-                this.resources.splice(foundResourceInfoIndex, 1);
-                await this.updateResource(foundResourceInfo.resourceType, foundResourceInfo.id);
+                delete this.resources[foundResourceInfo.info.resourceType + '/' + foundResourceInfo.info.id];
+                await this.updateResource(foundResourceInfo.info.resourceType, foundResourceInfo.info.id);
             }
         }
     }
@@ -185,33 +191,80 @@ export class Transfer {
     }
 
     private async updateNext() {
-        if (this.resources.length <= 0) {
-            return;
+        if (this.sortedResources.length <= 0) return;
+
+        console.log(`${this.sortedResources.length} resources left to import.`);
+
+        const bundle: IBundle = {
+            resourceType: 'Bundle',
+            type: 'transaction',
+            entry: []
+        };
+
+        while (bundle.entry.length < this._bundleEntryCount && this.sortedResources.length > 0) {
+            const nextResource = this.sortedResources[0];
+            this.sortedResources.splice(0, 1);
+            bundle.entry.push({
+                request: {
+                    method: 'PUT',
+                    url: `${nextResource.resourceType}/${nextResource.id}`
+                },
+                resource: nextResource
+            });
         }
 
-        console.log(`Getting next resource to update (${this.resources.length})`);
+        await this.requestUpdate(this.options.destination, bundle, true);
 
-        const next = this.resources[0];
-        this.resources.splice(0, 1);
-
-        await this.updateResource(next.resourceType, next.id);
         await this.updateNext();
     }
 
     private discoverResources() {
-        this.resources = [];
-        this.exportedBundle.entry
-            .map(e => {
-                return {
-                    resourceType: e.resource.resourceType,
-                    id: e.resource.id
+        this.resources = {};
+
+        for (const entry of this.exportedBundle.entry) {
+            const info = <ResourceInfo> {
+                resourceType: entry.resource.resourceType,
+                id: entry.resource.id
+            };
+            const key = info.resourceType + '/' + info.id;
+            if (!this.resources[key]) {
+                this.resources[key] = {
+                    info: info,
+                    versions: [entry.resource]
                 };
-            })
-            .forEach(e => {
-                if (!this.resources.find(u => u.resourceType === e.resourceType && u.id === e.id)) {
-                    this.resources.push(e);
-                }
-            });
+            } else {
+                this.resources[key].versions.push(entry.resource);
+            }
+        }
+    }
+
+    private sortResources() {
+        this.sortedResources = [];
+        const sortQueue = Object.keys(this.resources);
+
+        const sortResource = (resource: { info: ResourceInfo, versions: any[] }) => {
+            if (!resource) return;
+            const queueIndex = sortQueue.indexOf(resource.info.resourceType + '/' + resource.info.id);
+            if (queueIndex < 0) return;
+            sortQueue.splice(queueIndex, 1);
+
+            for (const rv of resource.versions) {
+                const resourceReferences = this.getResourceReferences(rv.resource);
+                resourceReferences.forEach(rr => {
+                    if (sortQueue.indexOf(rr.resourceType + '/' + rr.id) >= 0) {
+                        sortResource(this.resources[rr.resourceType + '/' + rr.id]);
+                    }
+                });
+                this.sortedResources.push(rv);
+            }
+        };
+
+        while (sortQueue.length > 0) {
+            const nextSortKey = sortQueue[0];
+            const nextSortInfo = this.resources[nextSortKey];
+
+            sortResource(nextSortInfo);
+        }
     }
 
     private getResourceReferences(obj: any): ResourceInfo[] {
@@ -284,12 +337,16 @@ export class Transfer {
                     return this.options.exclude.indexOf(e.resource.resourceType) < 0;
                 });
             }
-        } else {
+        } else if (!this.exportedBundle) {
             console.log('Either source or input_file must be specified');
             return;
         }
 
+        console.log('Discovering resources to be imported');
+
         this.discoverResources();
+
+        console.log('Determining which resources have references that need placeholders');
 
         // Find ImplementationGuides that are referencing ValueSets not included in the bundle and
         // add a placeholder value set to the Bundle with a URL. This block can be removed after this HAPI issue is fixed:
@@ -299,7 +356,7 @@ export class Transfer {
             .forEach(ig => {
                 const references = this.getResourceReferences(ig);
                 const notFoundReferences = references
-                    .filter(r => !this.resources.find(n => n.resourceType === r.resourceType && n.id.toLowerCase() === r.id.toLowerCase()));
+                    .filter(r => !this.resources[r.resourceType + '/' + r.id]);
 
                 notFoundReferences
                     .filter(r => ['Bundle', 'ValueSet', 'ConceptMap', 'SearchParameter'].indexOf(r.resourceType) >= 0)
@@ -320,40 +377,42 @@ export class Transfer {
                         this.exportedBundle.entry.push({
                             resource: mockResource
                         });
-                        this.resources.push(ref);
+                        this.resources[ref.resourceType + '/' + ref.id] = { info: ref, versions: [mockResource] };
                     });
             });
+
+        console.log('Sorting resources for import');
+
+        this.sortResources();
+
+        console.log('Turning off subscriptions initially');
 
         // Find all subscriptions and make sure all the versions of the subscriptions have their status set to "off"
         // Keep track of all the Subscriptions that were on so that they can later be turned *back* on.
         // The subscription's considered "active" only if the most recent version of the subscription is active.
-        const subscriptions = this.resources.filter(r => r.resourceType === 'Subscription');
+        const subscriptions = Object.keys(this.resources).filter(k => k.startsWith('Subscription/')).map(k => this.resources[k]);
         const activeSubscriptions = subscriptions
             .filter(r => {
-                const resourceVersions = this.exportedBundle.entry
-                    .filter(e => e.resource.resourceType === r.resourceType && e.resource.id.toLowerCase() === r.id.toLowerCase());
-                const activeVersions = resourceVersions.filter(rv => rv.resource.status === 'active' || rv.resource.status === 'requested');
-
-                if (activeVersions.length > 0) {
-                    return activeVersions.indexOf(resourceVersions[resourceVersions.length - 1]) >= 0;
-                }
+                const lastVersion = r.versions[r.versions.length - 1];
+                return lastVersion.status === 'active' || lastVersion.status === 'requested';
             });
         subscriptions.forEach(r => {
             // Make sure all versions of the Subscription resources are set to non-active status
-            this.exportedBundle.entry
-                .filter(e => e.resource.resourceType === r.resourceType && e.resource.id.toLowerCase() === r.id.toLowerCase())
-                .filter(rv => rv.resource.status === 'active' || rv.resource.status === 'requested')
-                .forEach(rv => rv.resource.status = 'off');
-        })
+            r.versions
+                .filter(v => v.status === 'active' || v.status === 'requested')
+                .forEach(v => v.status = 'off');
+        });
+
+        console.log('Beginning import of resources into destination server');
 
         // Start processing the resource queue
         await this.updateNext();
 
+        console.log(`Turning on ${activeSubscriptions.length} subscriptions`);
+
         // Turn the status of active subscriptions back on
         for (let activeSubscription of activeSubscriptions) {
-            const resourceVersions = this.exportedBundle.entry
-                .filter(e => e.resource.resourceType === activeSubscription.resourceType && e.resource.id.toLowerCase() === activeSubscription.id.toLowerCase());
-            const lastVersion = resourceVersions[resourceVersions.length - 1];
+            const lastVersion = activeSubscription.versions[activeSubscription.versions.length - 1];
             lastVersion.resource.status = 'requested';
 
             console.log(`Updating the status of Subscription/${lastVersion.resource.id} to turn the subscription on`);

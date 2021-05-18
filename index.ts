@@ -5,6 +5,7 @@ import {FixIds} from './fixids';
 import {Transfer} from "./transfer";
 import {Compare} from "./compare";
 import {Delete, DeleteOptions} from "./delete";
+import {BulkImport, BulkImportOptions} from "./bulk-import";
 
 class FixIdsOptions {
     public file_path: string;
@@ -60,6 +61,20 @@ export class Main {
             }, (argv: any) => {
                 const transfer = new Transfer(argv);
                 transfer.execute();
+            })
+            .command('bulk-import <destination> <directory>', 'Import resources from bulk ndjson files in a directory', (yargs: any) => {
+                yargs
+                    .positional('destination', {
+                        type: 'string',
+                        describe: 'The FHIR server base of the destination FHIR server (where resources are stored)'
+                    })
+                    .positional('directory', {
+                        type: 'string',
+                        describe: 'Path to a directory where .ndjson files are stored to be imported'
+                    });
+            }, (argv: BulkImportOptions) => {
+                const bulkImport = new BulkImport(argv);
+                bulkImport.execute();
             })
             .command('transfer <destination> <source>', 'Transfer resources from one server to another', (yargs: any) => {
                 yargs

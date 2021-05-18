@@ -45,22 +45,27 @@ var helper_1 = require("./helper");
 var util = require("util");
 var Transfer = (function () {
     function Transfer(options) {
+        this._bundleEntryCount = 500;
         this.messages = [];
         this.sleep = util.promisify(setTimeout);
         this.options = options;
     }
-    Transfer.prototype.requestUpdate = function (fhirBase, resource) {
+    Transfer.prototype.requestUpdate = function (fhirBase, resource, isTransaction) {
+        if (isTransaction === void 0) { isTransaction = false; }
         return __awaiter(this, void 0, void 0, function () {
             var url;
             var _this = this;
             return __generator(this, function (_a) {
-                url = fhirBase + (fhirBase.endsWith('/') ? '' : '/') + resource.resourceType + '/' + resource.id;
-                resource.id = resource.id.trim();
-                if (resource.resourceType === 'Bundle' && !resource.type) {
-                    resource.type = 'collection';
+                url = fhirBase;
+                if (!isTransaction) {
+                    url += (fhirBase.endsWith('/') ? '' : '/') + resource.resourceType + '/' + resource.id;
+                    resource.id = resource.id.trim();
+                    if (resource.resourceType === 'Bundle' && !resource.type) {
+                        resource.type = 'collection';
+                    }
                 }
                 return [2, new Promise(function (resolve, reject) {
-                        request({ url: url, method: 'PUT', body: resource, json: true }, function (err, response, body) {
+                        request({ url: url, method: isTransaction ? 'POST' : 'PUT', body: resource, json: true }, function (err, response, body) {
                             if (err) {
                                 if (body && body.resourceType === 'OperationOutcome' && !body.id) {
                                     var message = JSON.stringify(body);
@@ -128,7 +133,7 @@ var Transfer = (function () {
     };
     Transfer.prototype.updateReferences = function (resource) {
         return __awaiter(this, void 0, void 0, function () {
-            var references, _loop_1, this_1, _i, references_1, reference;
+            var references, _i, references_1, reference, foundResourceInfo;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -136,30 +141,15 @@ var Transfer = (function () {
                         if (references.length > 0) {
                             console.log("Found " + references.length + " references to store on the destination server first");
                         }
-                        _loop_1 = function (reference) {
-                            var foundResourceInfo, foundResourceInfoIndex;
-                            return __generator(this, function (_b) {
-                                switch (_b.label) {
-                                    case 0:
-                                        foundResourceInfo = this_1.resources.find(function (r) { return r.resourceType === reference.resourceType && r.id === reference.id; });
-                                        if (!foundResourceInfo) return [3, 2];
-                                        foundResourceInfoIndex = this_1.resources.indexOf(foundResourceInfo);
-                                        this_1.resources.splice(foundResourceInfoIndex, 1);
-                                        return [4, this_1.updateResource(foundResourceInfo.resourceType, foundResourceInfo.id)];
-                                    case 1:
-                                        _b.sent();
-                                        _b.label = 2;
-                                    case 2: return [2];
-                                }
-                            });
-                        };
-                        this_1 = this;
                         _i = 0, references_1 = references;
                         _a.label = 1;
                     case 1:
                         if (!(_i < references_1.length)) return [3, 4];
                         reference = references_1[_i];
-                        return [5, _loop_1(reference)];
+                        foundResourceInfo = this.resources[reference.resourceType + '/' + reference.id];
+                        if (!foundResourceInfo) return [3, 3];
+                        delete this.resources[foundResourceInfo.info.resourceType + '/' + foundResourceInfo.info.id];
+                        return [4, this.updateResource(foundResourceInfo.info.resourceType, foundResourceInfo.info.id)];
                     case 2:
                         _a.sent();
                         _a.label = 3;
@@ -229,17 +219,30 @@ var Transfer = (function () {
     };
     Transfer.prototype.updateNext = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var next;
+            var bundle, nextResource;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (this.resources.length <= 0) {
+                        if (this.sortedResources.length <= 0)
                             return [2];
+                        console.log(this.sortedResources.length + " resources left to import.");
+                        bundle = {
+                            resourceType: 'Bundle',
+                            type: 'transaction',
+                            entry: []
+                        };
+                        while (bundle.entry.length < this._bundleEntryCount && this.sortedResources.length > 0) {
+                            nextResource = this.sortedResources[0];
+                            this.sortedResources.splice(0, 1);
+                            bundle.entry.push({
+                                request: {
+                                    method: 'PUT',
+                                    url: nextResource.resourceType + "/" + nextResource.id
+                                },
+                                resource: nextResource
+                            });
                         }
-                        console.log("Getting next resource to update (" + this.resources.length + ")");
-                        next = this.resources[0];
-                        this.resources.splice(0, 1);
-                        return [4, this.updateResource(next.resourceType, next.id)];
+                        return [4, this.requestUpdate(this.options.destination, bundle, true)];
                     case 1:
                         _a.sent();
                         return [4, this.updateNext()];
@@ -251,20 +254,52 @@ var Transfer = (function () {
         });
     };
     Transfer.prototype.discoverResources = function () {
-        var _this = this;
-        this.resources = [];
-        this.exportedBundle.entry
-            .map(function (e) {
-            return {
-                resourceType: e.resource.resourceType,
-                id: e.resource.id
+        this.resources = {};
+        for (var _i = 0, _a = this.exportedBundle.entry; _i < _a.length; _i++) {
+            var entry = _a[_i];
+            var info = {
+                resourceType: entry.resource.resourceType,
+                id: entry.resource.id
             };
-        })
-            .forEach(function (e) {
-            if (!_this.resources.find(function (u) { return u.resourceType === e.resourceType && u.id === e.id; })) {
-                _this.resources.push(e);
+            var key = info.resourceType + '/' + info.id;
+            if (!this.resources[key]) {
+                this.resources[key] = {
+                    info: info,
+                    versions: [entry.resource]
+                };
             }
-        });
+            else {
+                this.resources[key].versions.push(entry.resource);
+            }
+        }
+    };
+    Transfer.prototype.sortResources = function () {
+        var _this = this;
+        this.sortedResources = [];
+        var sortQueue = Object.keys(this.resources);
+        var sortResource = function (resource) {
+            if (!resource)
+                return;
+            var queueIndex = sortQueue.indexOf(resource.info.resourceType + '/' + resource.info.id);
+            if (queueIndex < 0)
+                return;
+            sortQueue.splice(queueIndex, 1);
+            for (var _i = 0, _a = resource.versions; _i < _a.length; _i++) {
+                var rv = _a[_i];
+                var resourceReferences = _this.getResourceReferences(rv.resource);
+                resourceReferences.forEach(function (rr) {
+                    if (sortQueue.indexOf(rr.resourceType + '/' + rr.id) >= 0) {
+                        sortResource(_this.resources[rr.resourceType + '/' + rr.id]);
+                    }
+                });
+                _this.sortedResources.push(rv);
+            }
+        };
+        while (sortQueue.length > 0) {
+            var nextSortKey = sortQueue[0];
+            var nextSortInfo = this.resources[nextSortKey];
+            sortResource(nextSortInfo);
+        }
     };
     Transfer.prototype.getResourceReferences = function (obj) {
         var references = [];
@@ -296,7 +331,7 @@ var Transfer = (function () {
     };
     Transfer.prototype.execute = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var exporter, exporter, fhir, subscriptions, activeSubscriptions, _loop_2, this_2, _i, activeSubscriptions_1, activeSubscription, issuesPath;
+            var exporter, exporter, fhir, subscriptions, activeSubscriptions, _i, activeSubscriptions_1, activeSubscription, lastVersion, issuesPath;
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
@@ -347,16 +382,21 @@ var Transfer = (function () {
                         }
                         return [3, 6];
                     case 5:
-                        console.log('Either source or input_file must be specified');
-                        return [2];
+                        if (!this.exportedBundle) {
+                            console.log('Either source or input_file must be specified');
+                            return [2];
+                        }
+                        _a.label = 6;
                     case 6:
+                        console.log('Discovering resources to be imported');
                         this.discoverResources();
+                        console.log('Determining which resources have references that need placeholders');
                         this.exportedBundle.entry
                             .map(function (e) { return e.resource; })
                             .forEach(function (ig) {
                             var references = _this.getResourceReferences(ig);
                             var notFoundReferences = references
-                                .filter(function (r) { return !_this.resources.find(function (n) { return n.resourceType === r.resourceType && n.id.toLowerCase() === r.id.toLowerCase(); }); });
+                                .filter(function (r) { return !_this.resources[r.resourceType + '/' + r.id]; });
                             notFoundReferences
                                 .filter(function (r) { return ['Bundle', 'ValueSet', 'ConceptMap', 'SearchParameter'].indexOf(r.resourceType) >= 0; })
                                 .forEach(function (ref) {
@@ -376,55 +416,40 @@ var Transfer = (function () {
                                 _this.exportedBundle.entry.push({
                                     resource: mockResource
                                 });
-                                _this.resources.push(ref);
+                                _this.resources[ref.resourceType + '/' + ref.id] = { info: ref, versions: [mockResource] };
                             });
                         });
-                        subscriptions = this.resources.filter(function (r) { return r.resourceType === 'Subscription'; });
+                        console.log('Sorting resources for import');
+                        this.sortResources();
+                        console.log('Turning off subscriptions initially');
+                        subscriptions = Object.keys(this.resources).filter(function (k) { return k.startsWith('Subscription/'); }).map(function (k) { return _this.resources[k]; });
                         activeSubscriptions = subscriptions
                             .filter(function (r) {
-                            var resourceVersions = _this.exportedBundle.entry
-                                .filter(function (e) { return e.resource.resourceType === r.resourceType && e.resource.id.toLowerCase() === r.id.toLowerCase(); });
-                            var activeVersions = resourceVersions.filter(function (rv) { return rv.resource.status === 'active' || rv.resource.status === 'requested'; });
-                            if (activeVersions.length > 0) {
-                                return activeVersions.indexOf(resourceVersions[resourceVersions.length - 1]) >= 0;
-                            }
+                            var lastVersion = r.versions[r.versions.length - 1];
+                            return lastVersion.status === 'active' || lastVersion.status === 'requested';
                         });
                         subscriptions.forEach(function (r) {
-                            _this.exportedBundle.entry
-                                .filter(function (e) { return e.resource.resourceType === r.resourceType && e.resource.id.toLowerCase() === r.id.toLowerCase(); })
-                                .filter(function (rv) { return rv.resource.status === 'active' || rv.resource.status === 'requested'; })
-                                .forEach(function (rv) { return rv.resource.status = 'off'; });
+                            r.versions
+                                .filter(function (v) { return v.status === 'active' || v.status === 'requested'; })
+                                .forEach(function (v) { return v.status = 'off'; });
                         });
+                        console.log('Beginning import of resources into destination server');
                         return [4, this.updateNext()];
                     case 7:
                         _a.sent();
-                        _loop_2 = function (activeSubscription) {
-                            var resourceVersions, lastVersion;
-                            return __generator(this, function (_b) {
-                                switch (_b.label) {
-                                    case 0:
-                                        resourceVersions = this_2.exportedBundle.entry
-                                            .filter(function (e) { return e.resource.resourceType === activeSubscription.resourceType && e.resource.id.toLowerCase() === activeSubscription.id.toLowerCase(); });
-                                        lastVersion = resourceVersions[resourceVersions.length - 1];
-                                        lastVersion.resource.status = 'requested';
-                                        console.log("Updating the status of Subscription/" + lastVersion.resource.id + " to turn the subscription on");
-                                        return [4, this_2.requestUpdate(this_2.options.destination, lastVersion.resource)];
-                                    case 1:
-                                        _b.sent();
-                                        console.log("Done updating the status of Subscription/" + lastVersion.resource.id);
-                                        return [2];
-                                }
-                            });
-                        };
-                        this_2 = this;
+                        console.log("Turning on " + activeSubscriptions.length + " subscriptions");
                         _i = 0, activeSubscriptions_1 = activeSubscriptions;
                         _a.label = 8;
                     case 8:
                         if (!(_i < activeSubscriptions_1.length)) return [3, 11];
                         activeSubscription = activeSubscriptions_1[_i];
-                        return [5, _loop_2(activeSubscription)];
+                        lastVersion = activeSubscription.versions[activeSubscription.versions.length - 1];
+                        lastVersion.resource.status = 'requested';
+                        console.log("Updating the status of Subscription/" + lastVersion.resource.id + " to turn the subscription on");
+                        return [4, this.requestUpdate(this.options.destination, lastVersion.resource)];
                     case 9:
                         _a.sent();
+                        console.log("Done updating the status of Subscription/" + lastVersion.resource.id);
                         _a.label = 10;
                     case 10:
                         _i++;

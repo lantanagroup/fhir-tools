@@ -51,3 +51,11 @@ node index.js import <fhir_base> <in_file>   Import data to a FHIR server
 | ---------- | ----------- | ---- |
 | fhir_base | The base url of the fhir server | string |
 | in_file | Location on computer of the bundle to import | string |
+
+## Transfer
+Transfer handles the export and import features together
+
+Example
+```
+node index.js transfer <destination> <source>
+```

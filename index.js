@@ -44,6 +44,7 @@ var transfer_1 = require("./transfer");
 var compare_1 = require("./compare");
 var delete_1 = require("./delete");
 var bulk_import_1 = require("./bulk-import");
+var bulk_analyze_1 = require("./bulk-analyze");
 var FixIdsOptions = (function () {
     function FixIdsOptions() {
     }
@@ -112,6 +113,20 @@ var Main = (function () {
         }, function (argv) {
             var bulkImport = new bulk_import_1.BulkImport(argv);
             bulkImport.execute();
+        })
+            .command('bulk-analyze <inputDir> <outputDir>', 'Analyze resources from bulk ndjson files in a directory', function (yargs) {
+            yargs
+                .positional('inputDir', {
+                type: 'string',
+                describe: 'Path to a directory where .ndjson files are stored'
+            })
+                .positional('outputDir', {
+                type: 'string',
+                describe: 'Path to where the output analysis TSV files shoudl be stored'
+            });
+        }, function (argv) {
+            var bulkAnalyze = new bulk_analyze_1.BulkAnalyze(argv);
+            bulkAnalyze.execute();
         })
             .command('transfer <destination> <source>', 'Transfer resources from one server to another', function (yargs) {
             yargs

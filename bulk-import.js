@@ -78,6 +78,7 @@ var BulkImport = (function () {
                         return [4, transfer.execute()];
                     case 1:
                         _a.sent();
+                        console.log('Done transferring.');
                         return [2];
                 }
             });

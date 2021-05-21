@@ -6,6 +6,7 @@ import {Transfer} from "./transfer";
 import {Compare} from "./compare";
 import {Delete, DeleteOptions} from "./delete";
 import {BulkImport, BulkImportOptions} from "./bulk-import";
+import {BulkAnalyze, BulkAnalyzeOptions} from "./bulk-analyze";
 
 class FixIdsOptions {
     public file_path: string;
@@ -75,6 +76,20 @@ export class Main {
             }, (argv: BulkImportOptions) => {
                 const bulkImport = new BulkImport(argv);
                 bulkImport.execute();
+            })
+            .command('bulk-analyze <inputDir> <outputDir>', 'Analyze resources from bulk ndjson files in a directory', (yargs: any) => {
+                yargs
+                    .positional('inputDir', {
+                        type: 'string',
+                        describe: 'Path to a directory where .ndjson files are stored'
+                    })
+                    .positional('outputDir', {
+                        type: 'string',
+                        describe: 'Path to where the output analysis TSV files shoudl be stored'
+                    });
+            }, (argv: BulkAnalyzeOptions) => {
+                const bulkAnalyze = new BulkAnalyze(argv);
+                bulkAnalyze.execute();
             })
             .command('transfer <destination> <source>', 'Transfer resources from one server to another', (yargs: any) => {
                 yargs

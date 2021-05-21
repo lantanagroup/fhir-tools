@@ -40,8 +40,21 @@ export class BulkImport {
             transfer.exportedBundle.entry.push(...fileEntries);
         });
 
+        /* Ensure that all resources have an identifier
+        transfer.exportedBundle.entry.forEach(e => {
+            if (!e.resource.identifier) {
+                e.resource.identifier = [{
+                    system: 'https://sanerproject.org',
+                    value: e.resource.id
+                }];
+            }
+        });
+         */
+
         console.log('Done reading resources. Beginning transfer');
 
         await transfer.execute();
+
+        console.log('Done transferring.');
     }
 }

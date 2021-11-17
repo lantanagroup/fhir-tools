@@ -87,6 +87,15 @@ export class Transfer {
                             response: body
                         });
                         resolve(body);
+                    } else if (body.resourceType === 'Bundle') {
+                        if (body.entry) {
+                            for (let entry of body.entry) {
+                                if (entry.response && entry.response.status && !entry.response.status.startsWith('20')) {
+                                    console.log('do something');
+                                }
+                            }
+                        }
+                        resolve(body);
                     } else if (body.resourceType === 'OperationOutcome' && !body.id) {
                         let message = JSON.stringify(body);
 
@@ -197,7 +206,7 @@ export class Transfer {
 
         const bundle: IBundle = {
             resourceType: 'Bundle',
-            type: 'transaction',
+            type: 'batch',
             entry: []
         };
 
@@ -424,7 +433,6 @@ export class Transfer {
         //await this.updateResource('OrganizationAffiliation', 'PDXOrgAffiliationGroupFacility102');
 
         if (this.messages && this.messages.length > 0) {
-            console.log('Found the following issues when transferring:');
 
             if (!fs.existsSync(path.join(__dirname, 'issues'))) {
                 fs.mkdirSync(path.join(__dirname, 'issues'));
@@ -437,6 +445,9 @@ export class Transfer {
                     .replace(/[:]/g, '-')
                     .substring(0, 19) +
                 '.json');
+
+            console.log('Found issues when transferring... Storing issues at path: ' + issuesPath);
+
             fs.writeFileSync(issuesPath, JSON.stringify(this.messages, null, '\t'));
         }
     }

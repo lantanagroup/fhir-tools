@@ -40,16 +40,70 @@ export class BulkImport {
             transfer.exportedBundle.entry.push(...fileEntries);
         });
 
-        /* Ensure that all resources have an identifier
-        transfer.exportedBundle.entry.forEach(e => {
-            if (!e.resource.identifier) {
+        /*
+        transfer.exportedBundle.entry = transfer.exportedBundle.entry
+            .filter(e => e.resource && e.resource.resourceType === 'MedicationStatement')
+            .map(e => {
+                const medStmt = e.resource;
+                const entry = {
+                    resource: {
+                        resourceType: 'MedicationRequest',
+                        id: medStmt.id,
+                        intent: 'order',
+                        identifier: medStmt.identifier,
+                        status: medStmt.status || 'completed',
+                        statusReason: medStmt.statusReason && medStmt.statusReason.length > 0 ? medStmt.statusReason[0] : null,
+                        category: medStmt.category ? [medStmt.category] : null,
+                        medicationCodeableConcept: medStmt.medicationCodeableConcept,
+                        medicationReference: medStmt.medicationReference,
+                        subject: medStmt.subject,
+                        encounter: medStmt.context,
+                        authoredOn: medStmt.effectiveDateTime,
+                        reasonCode: medStmt.reasonCode,
+                        reasonReference: medStmt.reasonReference,
+                        note: medStmt.note,
+                        dosage: medStmt.dosage
+                    }
+                };
+
+                if (medStmt.effectivePeriod) {
+                    entry.resource.dispenseRequest = {
+                        validityPeriod: medStmt.effectivePeriod
+                    };
+                }
+
+                return entry;
+            });
+         */
+
+        transfer.exportedBundle.entry = transfer.exportedBundle.entry.filter(e => e.resource.resourceType === 'Patient');
+
+        /* Ensure a status is appropriately set for resources */
+        transfer.exportedBundle.entry
+            .filter(e => !e.resource.status)
+            .forEach(e => {
+                switch (e.resource.resourceType) {
+                    case 'Encounter':
+                        e.resource.status = 'finished';
+                        break;
+                    case 'Observation':
+                        e.resource.status = 'final';
+                        break;
+                    case 'MedicationRequest':
+                        e.resource.status = 'completed';
+                        break;
+                }
+            });
+
+        /* Ensure that all Patient resources have an identifier */
+        transfer.exportedBundle.entry
+            .filter(e => e.resource.resourceType === 'Patient' && !e.resource.identifier)
+            .forEach(e => {
                 e.resource.identifier = [{
                     system: 'https://sanerproject.org',
                     value: e.resource.id
                 }];
-            }
-        });
-         */
+            });
 
         console.log('Done reading resources. Beginning transfer');
 

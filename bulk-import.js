@@ -74,6 +74,30 @@ var BulkImport = (function () {
                             });
                             (_a = transfer.exportedBundle.entry).push.apply(_a, fileEntries);
                         });
+                        transfer.exportedBundle.entry = transfer.exportedBundle.entry.filter(function (e) { return e.resource.resourceType === 'Patient'; });
+                        transfer.exportedBundle.entry
+                            .filter(function (e) { return !e.resource.status; })
+                            .forEach(function (e) {
+                            switch (e.resource.resourceType) {
+                                case 'Encounter':
+                                    e.resource.status = 'finished';
+                                    break;
+                                case 'Observation':
+                                    e.resource.status = 'final';
+                                    break;
+                                case 'MedicationRequest':
+                                    e.resource.status = 'completed';
+                                    break;
+                            }
+                        });
+                        transfer.exportedBundle.entry
+                            .filter(function (e) { return e.resource.resourceType === 'Patient' && !e.resource.identifier; })
+                            .forEach(function (e) {
+                            e.resource.identifier = [{
+                                    system: 'https://sanerproject.org',
+                                    value: e.resource.id
+                                }];
+                        });
                         console.log('Done reading resources. Beginning transfer');
                         return [4, transfer.execute()];
                     case 1:

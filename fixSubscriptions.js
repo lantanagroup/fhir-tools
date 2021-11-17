@@ -1,5 +1,6 @@
 "use strict";
 exports.__esModule = true;
+exports.FixSubscriptions = void 0;
 var FixSubscriptions = (function () {
     function FixSubscriptions(bundle) {
         this.bundle = bundle;

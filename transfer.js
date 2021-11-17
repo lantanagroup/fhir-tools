@@ -99,6 +99,17 @@ var Transfer = (function () {
                                     });
                                     resolve(body);
                                 }
+                                else if (body.resourceType === 'Bundle') {
+                                    if (body.entry) {
+                                        for (var _i = 0, _a = body.entry; _i < _a.length; _i++) {
+                                            var entry = _a[_i];
+                                            if (entry.response && entry.response.status && !entry.response.status.startsWith('20')) {
+                                                console.log('do something');
+                                            }
+                                        }
+                                    }
+                                    resolve(body);
+                                }
                                 else if (body.resourceType === 'OperationOutcome' && !body.id) {
                                     var message = JSON.stringify(body);
                                     if (body.issue && body.issue.length > 0 && body.issue[0].diagnostics) {
@@ -228,7 +239,7 @@ var Transfer = (function () {
                         console.log(this.sortedResources.length + " resources left to import.");
                         bundle = {
                             resourceType: 'Bundle',
-                            type: 'transaction',
+                            type: 'batch',
                             entry: []
                         };
                         while (bundle.entry.length < this._bundleEntryCount && this.sortedResources.length > 0) {
@@ -456,7 +467,6 @@ var Transfer = (function () {
                         return [3, 8];
                     case 11:
                         if (this.messages && this.messages.length > 0) {
-                            console.log('Found the following issues when transferring:');
                             if (!fs.existsSync(path.join(__dirname, 'issues'))) {
                                 fs.mkdirSync(path.join(__dirname, 'issues'));
                             }
@@ -467,6 +477,7 @@ var Transfer = (function () {
                                     .replace(/[:]/g, '-')
                                     .substring(0, 19) +
                                 '.json');
+                            console.log('Found issues when transferring... Storing issues at path: ' + issuesPath);
                             fs.writeFileSync(issuesPath, JSON.stringify(this.messages, null, '\t'));
                         }
                         return [2];

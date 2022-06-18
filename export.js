@@ -47,6 +47,7 @@ var urljoin = require("url-join");
 var fs = require("fs");
 var semver = require("semver");
 var helper_1 = require("./helper");
+var auth_1 = require("./auth");
 var ExportOptions = (function () {
     function ExportOptions() {
         this.ig = false;
@@ -70,12 +71,13 @@ var Export = (function () {
             return __generator(this, function (_a) {
                 exporter = new Export(options);
                 return [2, new Promise(function (resolve, reject) {
+                        var metadataUrl = options.fhir_base + (options.fhir_base.endsWith('/') ? '' : '/') + 'metadata';
                         var metadataOptions = {
                             method: 'GET',
-                            url: options.fhir_base + (options.fhir_base.endsWith('/') ? '' : '/') + 'metadata',
+                            url: metadataUrl,
                             json: true
                         };
-                        console.log("Checking /metadata of server to determine version and resources");
+                        console.log("Checking " + metadataUrl + " of server to determine version and resources");
                         request(metadataOptions, function (err, response, metadata) {
                             if (err || response.statusCode != 200) {
                                 reject('Error retrieving metadata from FHIR server');
@@ -133,7 +135,9 @@ var Export = (function () {
                     })
                 };
                 return [2, new Promise(function (resolve, reject) {
-                        request(_this.options.fhir_base, { method: 'POST', json: true, body: body }, function (err, response, body) {
+                        var options = { method: 'POST', json: true, body: body };
+                        _this.auth.authenticateRequest(options);
+                        request(_this.options.fhir_base, options, function (err, response, body) {
                             if (err) {
                                 reject(err);
                             }
@@ -148,6 +152,7 @@ var Export = (function () {
     Export.prototype.getResource = function (resourceType, id) {
         return __awaiter(this, void 0, void 0, function () {
             var url;
+            var _this = this;
             return __generator(this, function (_a) {
                 url = this.options.fhir_base;
                 if (resourceType && id) {
@@ -157,7 +162,9 @@ var Export = (function () {
                     url += (this.options.fhir_base.endsWith('/') ? '' : '/') + resourceType;
                 }
                 return [2, new Promise(function (resolve, reject) {
-                        request(url, { json: true }, function (err, response, body) {
+                        var options = { json: true };
+                        _this.auth.authenticateRequest(options);
+                        request(url, options, function (err, response, body) {
                             if (err) {
                                 reject(err);
                             }
@@ -181,6 +188,7 @@ var Export = (function () {
                                 'Content-Type': 'application/json'
                             }
                         };
+                        _this.auth.authenticateRequest(options);
                         request(url, options, function (err, response, body) { return __awaiter(_this, void 0, void 0, function () {
                             return __generator(this, function (_a) {
                                 if (err) {
@@ -203,7 +211,7 @@ var Export = (function () {
     };
     Export.prototype.getBundle = function (nextUrl, resourceType) {
         return __awaiter(this, void 0, void 0, function () {
-            var body, nextLink;
+            var options, body, nextLink;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -211,7 +219,9 @@ var Export = (function () {
                             this.bundles[resourceType] = [];
                         }
                         console.log("Requesting " + nextUrl);
-                        return [4, this.request(nextUrl)];
+                        options = {};
+                        this.auth.authenticateRequest(options);
+                        return [4, this.request(nextUrl, options)];
                     case 1:
                         body = _a.sent();
                         if (body.entry && body.entry.length > 0) {
@@ -283,8 +293,13 @@ var Export = (function () {
             var _this = this;
             return __generator(this, function (_f) {
                 switch (_f.label) {
-                    case 0: return [4, this.processQueue()];
+                    case 0:
+                        this.auth = new auth_1.Auth();
+                        return [4, this.auth.prepare(this.options.auth_config)];
                     case 1:
+                        _f.sent();
+                        return [4, this.processQueue()];
+                    case 2:
                         _f.sent();
                         this.exportBundle = {
                             resourceType: 'Bundle',
@@ -310,7 +325,7 @@ var Export = (function () {
                                 }
                             }
                         }
-                        if (!this.options.ig) return [3, 5];
+                        if (!this.options.ig) return [3, 6];
                         igs = this.exportBundle.entry
                             .filter(function (tbe) { return tbe.resource.resourceType === 'ImplementationGuide'; })
                             .map(function (tbe) { return tbe.resource; });
@@ -372,26 +387,26 @@ var Export = (function () {
                         };
                         this_1 = this;
                         _e = 0, igs_1 = igs;
-                        _f.label = 2;
-                    case 2:
-                        if (!(_e < igs_1.length)) return [3, 5];
+                        _f.label = 3;
+                    case 3:
+                        if (!(_e < igs_1.length)) return [3, 6];
                         ig = igs_1[_e];
                         return [5, _loop_1(ig)];
-                    case 3:
-                        _f.sent();
-                        _f.label = 4;
                     case 4:
-                        _e++;
-                        return [3, 2];
+                        _f.sent();
+                        _f.label = 5;
                     case 5:
-                        if (!this.options.history) return [3, 7];
+                        _e++;
+                        return [3, 3];
+                    case 6:
+                        if (!this.options.history) return [3, 8];
                         console.log('Getting history for resources');
                         return [4, this.getNextHistory(this.exportBundle, this.exportBundle.entry.map(function (e) { return e; }))];
-                    case 6:
+                    case 7:
                         _f.sent();
                         console.log('Done exporting history for resources');
-                        _f.label = 7;
-                    case 7:
+                        _f.label = 8;
+                    case 8:
                         if (this.options.xml) {
                             fhir = helper_1.getFhirInstance(this.version);
                             outputContent = fhir.objToXml(this.exportBundle);
@@ -436,6 +451,7 @@ var Export = (function () {
     Export.prototype.getHistory = function (exportBundle, exportEntry) {
         return __awaiter(this, void 0, void 0, function () {
             var options;
+            var _this = this;
             return __generator(this, function (_a) {
                 options = {
                     method: 'GET',
@@ -443,6 +459,7 @@ var Export = (function () {
                     json: true
                 };
                 return [2, new Promise(function (resolve, reject) {
+                        _this.auth.authenticateRequest(options);
                         request(options, function (err, response, historyBundle) {
                             var _a;
                             if (err || !historyBundle || historyBundle.resourceType !== 'Bundle') {

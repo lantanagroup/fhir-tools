@@ -2,11 +2,10 @@ import * as request from 'request';
 import * as urljoin from 'url-join';
 import * as fs from 'fs';
 import * as semver from 'semver';
-import {Fhir} from "fhir/fhir";
-import * as path from "path";
-import {ParseConformance} from "fhir/parseConformance";
 import {IBundle} from "./fhir/bundle";
 import {getFhirInstance} from "./helper";
+import {Auth} from "./auth";
+import {CoreOptions} from "request";
 
 export class ExportOptions {
     public fhir_base: string;
@@ -19,6 +18,7 @@ export class ExportOptions {
     public history_queue? = 10;
     public xml? = false;
     public summary? = false;
+    public auth_config?: string;
 }
 
 export class Export {
@@ -26,6 +26,7 @@ export class Export {
     readonly maxHistoryQueue: number = 10
     private resourceTypes: string[] = [];
     private bundles: { [resourceType: string]: IBundle[] } = {};
+    private auth: Auth;
     public version: 'dstu3'|'r4';
     public exportBundle: IBundle;
 
@@ -37,13 +38,14 @@ export class Export {
         const exporter = new Export(options);
 
         return new Promise((resolve, reject) => {
+            const metadataUrl = options.fhir_base + (options.fhir_base.endsWith('/') ? '' : '/') + 'metadata';
             const metadataOptions = {
                 method: 'GET',
-                url: options.fhir_base + (options.fhir_base.endsWith('/') ? '' : '/') + 'metadata',
+                url: metadataUrl,
                 json: true
             };
 
-            console.log(`Checking /metadata of server to determine version and resources`);
+            console.log(`Checking ${metadataUrl} of server to determine version and resources`);
 
             request(metadataOptions, (err, response, metadata) => {
                 if (err || response.statusCode != 200) {
@@ -102,7 +104,10 @@ export class Export {
         };
 
         return new Promise((resolve, reject) => {
-            request(this.options.fhir_base, { method: 'POST', json: true, body: body }, (err, response, body) => {
+            const options: CoreOptions = { method: 'POST', json: true, body: body };
+            this.auth.authenticateRequest(options);
+
+            request(this.options.fhir_base, options, (err, response, body) => {
                 if (err) {
                     reject(err);
                 } else {
@@ -122,7 +127,10 @@ export class Export {
         }
 
         return new Promise((resolve, reject) => {
-            request(url, { json: true }, (err, response, body) => {
+            const options = { json: true };
+            this.auth.authenticateRequest(options);
+
+            request(url, options, (err, response, body) => {
                 if (err) {
                     reject(err);
                 } else {
@@ -142,6 +150,7 @@ export class Export {
                 }
             };
 
+            this.auth.authenticateRequest(options);
             request(url, options, async (err, response, body) => {
                 if (err) {
                     return reject(err);
@@ -168,7 +177,9 @@ export class Export {
 
         console.log(`Requesting ${nextUrl}`);
 
-        const body: any = await this.request(nextUrl);
+        const options = {};
+        this.auth.authenticateRequest(options);
+        const body: any = await this.request(nextUrl, options);
 
         if (body.entry && body.entry.length > 0) {
             console.log(`Found ${body.entry.length} ${resourceType} entries in bundle (Bundle.total = ${body.total})`);
@@ -223,6 +234,9 @@ export class Export {
     }
 
     public async execute(shouldOutput = true) {
+        this.auth = new Auth();
+        await this.auth.prepare(this.options.auth_config);
+
         await this.processQueue();
 
         this.exportBundle = {
@@ -349,6 +363,7 @@ export class Export {
         };
 
         return new Promise<void>((resolve, reject) => {
+            this.auth.authenticateRequest(options);
             request(options, (err, response, historyBundle) => {
                 if (err || !historyBundle || historyBundle.resourceType !== 'Bundle') {
                     reject(err || 'No Bundle response from _history request');

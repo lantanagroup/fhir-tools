@@ -1,5 +1,4 @@
 import * as yargs from 'yargs';
-import * as fs from 'fs';
 import {Export, ExportOptions} from './export';
 import {FixIds} from './fixids';
 import {Transfer} from "./transfer";
@@ -198,6 +197,9 @@ export class Main {
                     .option('xml', {
                         boolean: true,
                         description: 'Outputs as XML instead of the default JSON format'
+                    })
+                    .option('auth_config', {
+                        description: 'Path to the auth YML config file to use when authenticating requests to the FHIR server'
                     });
             }, async (argv: ExportOptions) => {
                 const exporter = await Export.newExporter(argv);

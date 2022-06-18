@@ -235,6 +235,9 @@ var Main = (function () {
                 .option('xml', {
                 boolean: true,
                 description: 'Outputs as XML instead of the default JSON format'
+            })
+                .option('auth_config', {
+                description: 'Path to the auth YML config file to use when authenticating requests to the FHIR server'
             });
         }, function (argv) { return __awaiter(_this, void 0, void 0, function () {
             var exporter;

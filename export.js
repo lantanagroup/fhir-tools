@@ -35,10 +35,14 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var __spreadArray = (this && this.__spreadArray) || function (to, from) {
-    for (var i = 0, il = from.length, j = to.length; i < il; i++, j++)
-        to[j] = from[i];
-    return to;
+var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
 };
 exports.__esModule = true;
 exports.Export = exports.ExportOptions = void 0;
@@ -77,7 +81,7 @@ var Export = (function () {
                             url: metadataUrl,
                             json: true
                         };
-                        console.log("Checking " + metadataUrl + " of server to determine version and resources");
+                        console.log("Checking ".concat(metadataUrl, " of server to determine version and resources"));
                         request(metadataOptions, function (err, response, metadata) {
                             if (err || response.statusCode != 200) {
                                 reject('Error retrieving metadata from FHIR server');
@@ -103,13 +107,13 @@ var Export = (function () {
                                     exporter.resourceTypes = options.resource_type;
                                 }
                                 if (options.exclude && options.exclude.length > 0) {
-                                    console.log("Excluding " + options.exclude.length + " resource types");
+                                    console.log("Excluding ".concat(options.exclude.length, " resource types"));
                                     exporter.resourceTypes = exporter.resourceTypes
                                         .filter(function (resourceType) { return (options.exclude || []).indexOf(resourceType) < 0; });
                                 }
                                 exporter.resourceTypes
                                     .sort(function (a, b) { return a.localeCompare(b); });
-                                console.log("Server is " + exporter.version + ", found " + exporter.resourceTypes.length + " resource types.");
+                                console.log("Server is ".concat(exporter.version, ", found ").concat(exporter.resourceTypes.length, " resource types."));
                                 resolve(exporter);
                             }
                         });
@@ -218,18 +222,18 @@ var Export = (function () {
                         if (!this.bundles[resourceType]) {
                             this.bundles[resourceType] = [];
                         }
-                        console.log("Requesting " + nextUrl);
+                        console.log("Requesting ".concat(nextUrl));
                         options = {};
                         this.auth.authenticateRequest(options);
                         return [4, this.request(nextUrl, options)];
                     case 1:
                         body = _a.sent();
                         if (body.entry && body.entry.length > 0) {
-                            console.log("Found " + body.entry.length + " " + resourceType + " entries in bundle (Bundle.total = " + body.total + ")");
+                            console.log("Found ".concat(body.entry.length, " ").concat(resourceType, " entries in bundle (Bundle.total = ").concat(body.total, ")"));
                             this.bundles[resourceType].push(body);
                         }
                         else {
-                            console.log("No entries found for " + resourceType);
+                            console.log("No entries found for ".concat(resourceType));
                         }
                         nextLink = (body.link || []).find(function (link) { return link.relation === 'next'; });
                         if (!(nextLink && nextLink.url)) return [3, 3];
@@ -258,9 +262,9 @@ var Export = (function () {
                         nextUrl = urljoin(this.options.fhir_base, resourceType);
                         nextUrl += '?_count=' + this.options.page_size.toString();
                         if (this.options.summary) {
-                            nextUrl += "&_elements=" + resourceType + ".id";
+                            nextUrl += "&_elements=".concat(resourceType, ".id");
                         }
-                        console.log("----------------------------\r\nStarting retrieve for " + resourceType);
+                        console.log("----------------------------\r\nStarting retrieve for ".concat(resourceType));
                         return [4, this.getBundle(nextUrl, resourceType)];
                     case 1:
                         _a.sent();
@@ -278,7 +282,7 @@ var Export = (function () {
                             }, [])
                                 .length;
                             if (totalEntries !== this.bundles[resourceType][0].total) {
-                                console.error("Expected " + this.bundles[resourceType][0].total + " but actually have " + totalEntries + " for " + resourceType);
+                                console.error("Expected ".concat(this.bundles[resourceType][0].total, " but actually have ").concat(totalEntries, " for ").concat(resourceType));
                             }
                         }
                         return [2];
@@ -318,7 +322,7 @@ var Export = (function () {
                                         resource: entry.resource,
                                         request: {
                                             method: 'PUT',
-                                            url: resourceType + "/" + entry.resource.id
+                                            url: "".concat(resourceType, "/").concat(entry.resource.id)
                                         }
                                     });
                                     this.exportBundle.total++;
@@ -335,7 +339,7 @@ var Export = (function () {
                                 switch (_g.label) {
                                     case 0:
                                         igResourcesBundle = void 0;
-                                        console.log("Searching for missing resources for the IG " + ig.id);
+                                        console.log("Searching for missing resources for the IG ".concat(ig.id));
                                         if (!(this_1.version === 'r4' && ig.definition && ig.definition.resource)) return [3, 2];
                                         igResourceReferences = ig.definition.resource
                                             .filter(function (r) { return r.reference && r.reference.reference; })
@@ -378,7 +382,7 @@ var Export = (function () {
                                             });
                                             if (missingIgResources.length > 0) {
                                                 this_1.exportBundle.entry = this_1.exportBundle.entry.concat(missingIgResources);
-                                                console.log("Adding " + missingIgResources.length + " resources not already in export for IG " + ig.id);
+                                                console.log("Adding ".concat(missingIgResources.length, " resources not already in export for IG ").concat(ig.id));
                                             }
                                         }
                                         return [2];
@@ -408,7 +412,7 @@ var Export = (function () {
                         _f.label = 8;
                     case 8:
                         if (this.options.xml) {
-                            fhir = helper_1.getFhirInstance(this.version);
+                            fhir = (0, helper_1.getFhirInstance)(this.version);
                             outputContent = fhir.objToXml(this.exportBundle);
                         }
                         else {
@@ -416,7 +420,7 @@ var Export = (function () {
                         }
                         if (shouldOutput) {
                             fs.writeFileSync(this.options.out_file, outputContent);
-                            console.log("Created file " + this.options.out_file + " with a Bundle of " + this.exportBundle.total + " entries");
+                            console.log("Created file ".concat(this.options.out_file, " with a Bundle of ").concat(this.exportBundle.total, " entries"));
                         }
                         return [2];
                 }
@@ -439,7 +443,7 @@ var Export = (function () {
                         return [4, Promise.all(promises)];
                     case 1:
                         _a.sent();
-                        console.log("Getting next " + this.maxHistoryQueue + " resource's history. " + entries.length + " left.");
+                        console.log("Getting next ".concat(this.maxHistoryQueue, " resource's history. ").concat(entries.length, " left."));
                         return [4, this.getNextHistory(exportBundle, entries)];
                     case 2:
                         _a.sent();
@@ -463,7 +467,7 @@ var Export = (function () {
                         request(options, function (err, response, historyBundle) {
                             var _a;
                             if (err || !historyBundle || historyBundle.resourceType !== 'Bundle') {
-                                reject(err || 'No Bundle response from _history request');
+                                resolve();
                                 return;
                             }
                             var replacementHistory = (historyBundle.entry || [])
@@ -472,7 +476,7 @@ var Export = (function () {
                                 return {
                                     request: {
                                         method: 'PUT',
-                                        url: entry.resource.resourceType + "/" + entry.resource.id
+                                        url: "".concat(entry.resource.resourceType, "/").concat(entry.resource.id)
                                     },
                                     resource: entry.resource
                                 };
@@ -496,8 +500,8 @@ var Export = (function () {
                             }
                             if (replacementHistory.length > 1) {
                                 var exportEntryIndex = exportBundle.entry.indexOf(exportEntry);
-                                (_a = exportBundle.entry).splice.apply(_a, __spreadArray([exportEntryIndex, 1], replacementHistory));
-                                console.log("Added " + (replacementHistory.length - 1) + " history items for " + exportEntry.resource.resourceType + "/" + exportEntry.resource.id);
+                                (_a = exportBundle.entry).splice.apply(_a, __spreadArray([exportEntryIndex, 1], replacementHistory, false));
+                                console.log("Added ".concat(replacementHistory.length - 1, " history items for ").concat(exportEntry.resource.resourceType, "/").concat(exportEntry.resource.id));
                             }
                             resolve();
                         });

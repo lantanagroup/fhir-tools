@@ -366,7 +366,7 @@ export class Export {
             this.auth.authenticateRequest(options);
             request(options, (err, response, historyBundle) => {
                 if (err || !historyBundle || historyBundle.resourceType !== 'Bundle') {
-                    reject(err || 'No Bundle response from _history request');
+                    resolve();
                     return;
                 }
 

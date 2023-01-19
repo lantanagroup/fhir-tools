@@ -52,6 +52,7 @@ var fs = require("fs");
 var semver = require("semver");
 var helper_1 = require("./helper");
 var auth_1 = require("./auth");
+var jsonstream_1 = require("jsonstream");
 var ExportOptions = (function () {
     function ExportOptions() {
         this.ig = false;
@@ -293,7 +294,7 @@ var Export = (function () {
     Export.prototype.execute = function (shouldOutput) {
         if (shouldOutput === void 0) { shouldOutput = true; }
         return __awaiter(this, void 0, void 0, function () {
-            var _i, _a, resourceType, bundles, _b, bundles_1, bundle, _c, _d, entry, igs, _loop_1, this_1, _e, igs_1, ig, outputContent, fhir;
+            var _i, _a, resourceType, bundles, _b, bundles_1, bundle, _c, _d, entry, igs, _loop_1, this_1, _e, igs_1, ig, fhir, outputContent, st;
             var _this = this;
             return __generator(this, function (_f) {
                 switch (_f.label) {
@@ -411,16 +412,22 @@ var Export = (function () {
                         console.log('Done exporting history for resources');
                         _f.label = 8;
                     case 8:
-                        if (this.options.xml) {
-                            fhir = (0, helper_1.getFhirInstance)(this.version);
-                            outputContent = fhir.objToXml(this.exportBundle);
-                        }
-                        else {
-                            outputContent = JSON.stringify(this.exportBundle);
-                        }
                         if (shouldOutput) {
-                            fs.writeFileSync(this.options.out_file, outputContent);
-                            console.log("Created file ".concat(this.options.out_file, " with a Bundle of ").concat(this.exportBundle.total, " entries"));
+                            if (this.options.xml) {
+                                fhir = (0, helper_1.getFhirInstance)(this.version);
+                                outputContent = fhir.objToXml(this.exportBundle);
+                                fs.writeFileSync(this.options.out_file, outputContent);
+                            }
+                            else {
+                                if (fs.existsSync(this.options.out_file)) {
+                                    fs.unlinkSync(this.options.out_file);
+                                }
+                                st = (0, jsonstream_1.stringify)();
+                                st.pipe(fs.createWriteStream(this.options.out_file));
+                                st.write(this.exportBundle);
+                                st.end();
+                            }
+                            console.log('done!');
                         }
                         return [2];
                 }

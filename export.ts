@@ -6,6 +6,7 @@ import {IBundle} from "./fhir/bundle";
 import {getFhirInstance} from "./helper";
 import {Auth} from "./auth";
 import {CoreOptions} from "request";
+import {stringify, stringifyObject} from 'jsonstream';
 
 export class ExportOptions {
     public fhir_base: string;
@@ -326,18 +327,23 @@ export class Export {
             console.log('Done exporting history for resources');
         }
 
-        let outputContent: string;
-
-        if (this.options.xml) {
-            let fhir = getFhirInstance(this.version);
-            outputContent = fhir.objToXml(this.exportBundle);
-        } else {
-            outputContent = JSON.stringify(this.exportBundle);
-        }
-
         if (shouldOutput) {
-            fs.writeFileSync(this.options.out_file, outputContent);
-            console.log(`Created file ${this.options.out_file} with a Bundle of ${this.exportBundle.total} entries`);
+            if (this.options.xml) {
+                let fhir = getFhirInstance(this.version);
+                const outputContent = fhir.objToXml(this.exportBundle);
+                fs.writeFileSync(this.options.out_file, outputContent);
+            } else {
+                if (fs.existsSync(this.options.out_file)) {
+                    fs.unlinkSync(this.options.out_file);
+                }
+
+                const st = stringify();
+                st.pipe(fs.createWriteStream(this.options.out_file));
+                st.write(this.exportBundle as any);
+                st.end();
+            }
+
+            console.log('done!');
         }
     }
 

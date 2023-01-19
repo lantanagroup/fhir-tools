@@ -52,7 +52,7 @@ var fs = require("fs");
 var semver = require("semver");
 var helper_1 = require("./helper");
 var auth_1 = require("./auth");
-var jsonstream_1 = require("jsonstream");
+var JSONStream_1 = require("JSONStream");
 var ExportOptions = (function () {
     function ExportOptions() {
         this.ig = false;
@@ -422,7 +422,7 @@ var Export = (function () {
                                 if (fs.existsSync(this.options.out_file)) {
                                     fs.unlinkSync(this.options.out_file);
                                 }
-                                st = (0, jsonstream_1.stringify)();
+                                st = (0, JSONStream_1.stringify)();
                                 st.pipe(fs.createWriteStream(this.options.out_file));
                                 st.write(this.exportBundle);
                                 st.end();

@@ -6,7 +6,7 @@ import {IBundle} from "./fhir/bundle";
 import {getFhirInstance} from "./helper";
 import {Auth} from "./auth";
 import {CoreOptions} from "request";
-import {stringify, stringifyObject} from 'jsonstream';
+import {stringify} from 'JSONStream';
 
 export class ExportOptions {
     public fhir_base: string;

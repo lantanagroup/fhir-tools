@@ -423,7 +423,7 @@ var Export = (function () {
                                     fs.unlinkSync(this.options.out_file);
                                 }
                                 st = (0, JSONStream_1.stringify)();
-                                st.pipe(fs.createWriteStream(this.options.out_file));
+                                st.pipe(fs.createWriteStream(this.options.out_file, { encoding: 'utf8' }));
                                 st.write(this.exportBundle);
                                 st.end();
                             }

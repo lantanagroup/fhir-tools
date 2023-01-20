@@ -40,7 +40,7 @@ var BulkAnalyze = (function () {
             fs.unlinkSync(path.join(this.options.outputDir, 'conditions.tsv'));
         }
         conditions.forEach(function (condition) {
-            fs.appendFileSync(path.join(_this.options.outputDir, 'conditions.tsv'), condition.id + "\t" + condition.patient + "\t" + condition.onset + "\t" + condition.code + "\t" + condition.system + "\t" + condition.display + "\t" + condition.encounter + "\n");
+            fs.appendFileSync(path.join(_this.options.outputDir, 'conditions.tsv'), "".concat(condition.id, "\t").concat(condition.patient, "\t").concat(condition.onset, "\t").concat(condition.code, "\t").concat(condition.system, "\t").concat(condition.display, "\t").concat(condition.encounter, "\n"));
         });
         var encounters = resources
             .filter(function (r) { return r.resourceType === 'Encounter'; })
@@ -60,7 +60,7 @@ var BulkAnalyze = (function () {
             fs.unlinkSync(path.join(this.options.outputDir, 'encounters.tsv'));
         }
         encounters.forEach(function (encounter) {
-            fs.appendFileSync(path.join(_this.options.outputDir, 'encounters.tsv'), encounter.id + "\t" + encounter.patient + "\t" + encounter.start + "\t" + encounter.end + "\t" + encounter.classCode + "\t" + encounter.classSystem + "\t" + encounter.typeCode + "\t" + encounter.typeSystem + "\n");
+            fs.appendFileSync(path.join(_this.options.outputDir, 'encounters.tsv'), "".concat(encounter.id, "\t").concat(encounter.patient, "\t").concat(encounter.start, "\t").concat(encounter.end, "\t").concat(encounter.classCode, "\t").concat(encounter.classSystem, "\t").concat(encounter.typeCode, "\t").concat(encounter.typeSystem, "\n"));
         });
         var medications = resources
             .filter(function (r) { return r.resourceType === 'MedicationStatement'; })
@@ -80,7 +80,7 @@ var BulkAnalyze = (function () {
             fs.unlinkSync(path.join(this.options.outputDir, 'medications.tsv'));
         }
         medications.forEach(function (med) {
-            fs.appendFileSync(path.join(_this.options.outputDir, 'medications.tsv'), med.id + "\t" + med.patient + "\t" + med.start + "\t" + med.end + "\t" + med.code + "\t" + med.system + "\t" + med.display + "\n");
+            fs.appendFileSync(path.join(_this.options.outputDir, 'medications.tsv'), "".concat(med.id, "\t").concat(med.patient, "\t").concat(med.start, "\t").concat(med.end, "\t").concat(med.code, "\t").concat(med.system, "\t").concat(med.display, "\n"));
         });
         var allPatients = resources.filter(function (r) { return r.resourceType === 'Patient'; });
         var patients = allPatients
@@ -101,7 +101,7 @@ var BulkAnalyze = (function () {
             fs.unlinkSync(path.join(this.options.outputDir, 'patients.tsv'));
         }
         patients.forEach(function (patient) {
-            fs.appendFileSync(path.join(_this.options.outputDir, 'patients.tsv'), patient.id + "\t" + patient.first + "\t" + patient.last + "\t" + patient.gender + "\t" + patient.birth + "\t" + patient.deceased + "\t" + patient.married + "\n");
+            fs.appendFileSync(path.join(_this.options.outputDir, 'patients.tsv'), "".concat(patient.id, "\t").concat(patient.first, "\t").concat(patient.last, "\t").concat(patient.gender, "\t").concat(patient.birth, "\t").concat(patient.deceased, "\t").concat(patient.married, "\n"));
         });
         var observations = resources
             .filter(function (r) { return r.resourceType === 'Observation'; })
@@ -137,7 +137,7 @@ var BulkAnalyze = (function () {
             fs.unlinkSync(path.join(this.options.outputDir, 'observations.tsv'));
         }
         observations.forEach(function (obs) {
-            fs.appendFileSync(path.join(_this.options.outputDir, 'observations.tsv'), obs.id + "\t" + obs.patient + "\t" + obs.encounter + "\t" + obs.date + "\t" + obs.code + "\t" + obs.codeSystem + "\t" + obs.display + "\t" + obs.value + "\t" + obs.valueUnit + "\t" + obs.valueSystem + "\n");
+            fs.appendFileSync(path.join(_this.options.outputDir, 'observations.tsv'), "".concat(obs.id, "\t").concat(obs.patient, "\t").concat(obs.encounter, "\t").concat(obs.date, "\t").concat(obs.code, "\t").concat(obs.codeSystem, "\t").concat(obs.display, "\t").concat(obs.value, "\t").concat(obs.valueUnit, "\t").concat(obs.valueSystem, "\n"));
         });
         console.log('Done analyzing bulk data directory');
     };

@@ -49,7 +49,7 @@ var Compare = (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        console.log("Gathering resource from first FHIR server: " + this.options.fhir1_base);
+                        console.log("Gathering resource from first FHIR server: ".concat(this.options.fhir1_base));
                         return [4, export_1.Export.newExporter({
                                 fhir_base: this.options.fhir1_base,
                                 page_size: this.options.page_size,
@@ -61,7 +61,7 @@ var Compare = (function () {
                         return [4, export1.execute(false)];
                     case 2:
                         _a.sent();
-                        console.log("Gathering resource from second FHIR server: " + this.options.fhir2_base);
+                        console.log("Gathering resource from second FHIR server: ".concat(this.options.fhir2_base));
                         return [4, export_1.Export.newExporter({
                                 fhir_base: this.options.fhir2_base,
                                 page_size: this.options.page_size,
@@ -86,14 +86,14 @@ var Compare = (function () {
                             });
                             if (!found) {
                                 var identifier = _this.options.history ?
-                                    e1.resource.resourceType + "/" + e1.resource.id + "-" + e1.resource.meta.versionId :
-                                    e1.resource.resourceType + "/" + e1.resource.id;
-                                console.log(identifier + " is missing from the second FHIR server");
+                                    "".concat(e1.resource.resourceType, "/").concat(e1.resource.id, "-").concat(e1.resource.meta.versionId) :
+                                    "".concat(e1.resource.resourceType, "/").concat(e1.resource.id);
+                                console.log("".concat(identifier, " is missing from the second FHIR server"));
                                 issueCount++;
                             }
                         });
                         if (issueCount > 0) {
-                            console.log("Found " + issueCount + " issues when comparing.");
+                            console.log("Found ".concat(issueCount, " issues when comparing."));
                         }
                         else {
                             console.log('Did not find any issues during comparison.');

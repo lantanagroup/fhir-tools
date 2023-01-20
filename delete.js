@@ -114,11 +114,11 @@ var Delete = (function () {
                                             })];
                                     case 2:
                                         deleteResults = _b.sent();
-                                        console.log("Deleted " + deleteResults.entry.length + " resources for resource type " + resourceType);
+                                        console.log("Deleted ".concat(deleteResults.entry.length, " resources for resource type ").concat(resourceType));
                                         return [3, 4];
                                     case 3:
                                         ex_1 = _b.sent();
-                                        console.error("Failed to delete resources for " + resourceType + " due to: " + ex_1.message);
+                                        console.error("Failed to delete resources for ".concat(resourceType, " due to: ").concat(ex_1.message));
                                         return [3, 4];
                                     case 4: return [2];
                                 }
@@ -162,7 +162,7 @@ var Delete = (function () {
                             })];
                     case 7:
                         expungeResults = _a.sent();
-                        console.log("Done expunging. Server responded with " + expungeResults.resourceType);
+                        console.log("Done expunging. Server responded with ".concat(expungeResults.resourceType));
                         _a.label = 8;
                     case 8:
                         console.log('Done');

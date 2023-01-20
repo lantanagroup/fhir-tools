@@ -12,4 +12,8 @@ export interface IBundle {
     total?: number;
     type: string;
     entry?: IBundleEntry[];
+    link?: {
+        relation: string;
+        url: string;
+    }[];
 }

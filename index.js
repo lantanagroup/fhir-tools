@@ -45,6 +45,7 @@ var compare_1 = require("./compare");
 var delete_1 = require("./delete");
 var bulk_import_1 = require("./bulk-import");
 var bulk_analyze_1 = require("./bulk-analyze");
+var get_all_resource_ids_1 = require("./get-all-resource-ids");
 var FixIdsOptions = (function () {
     function FixIdsOptions() {
     }
@@ -248,6 +249,38 @@ var Main = (function () {
                         exporter = _a.sent();
                         return [4, exporter.execute()];
                     case 2:
+                        _a.sent();
+                        return [2];
+                }
+            });
+        }); })
+            .command('get-all-resource-ids <fhir_base> <resource_type>', 'Gets all resource ids for the specified resource types', function (yargs) {
+            yargs
+                .positional('fhir_base', {
+                type: 'string',
+                describe: 'The base url of the fhir server'
+            })
+                .positional('resource_type', {
+                type: 'string',
+                describe: 'The resource type to get all resource ids for'
+            })
+                .option('out', {
+                alias: 'a',
+                describe: 'File path to output the ids to'
+            })
+                .option('as-list-resource', {
+                alias: 'l',
+                type: 'boolean',
+                "default": false
+            });
+        }, function (argv) { return __awaiter(_this, void 0, void 0, function () {
+            var getAllResourceIds;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        getAllResourceIds = new get_all_resource_ids_1.GetAllResourceIds(argv);
+                        return [4, getAllResourceIds.execute()];
+                    case 1:
                         _a.sent();
                         return [2];
                 }

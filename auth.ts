@@ -34,6 +34,7 @@ export class Auth {
                 return;
         }
     }
+
     public authenticateRequest(reqOptions: CoreOptions) {
         if (this.authHeader) {
             if (!reqOptions.headers) {

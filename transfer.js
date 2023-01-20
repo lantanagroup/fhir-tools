@@ -83,7 +83,7 @@ var Transfer = (function () {
                                 }
                                 else {
                                     _this.messages.push({
-                                        message: "An error was returned from the server: " + err,
+                                        message: "An error was returned from the server: ".concat(err),
                                         resource: resource,
                                         response: body
                                     });
@@ -150,7 +150,7 @@ var Transfer = (function () {
                     case 0:
                         references = this.getResourceReferences(resource);
                         if (references.length > 0) {
-                            console.log("Found " + references.length + " references to store on the destination server first");
+                            console.log("Found ".concat(references.length, " references to store on the destination server first"));
                         }
                         _i = 0, references_1 = references;
                         _a.label = 1;
@@ -181,7 +181,7 @@ var Transfer = (function () {
                     case 0:
                         versionEntries = this.exportedBundle.entry
                             .filter(function (e) { return e.resource.resourceType === resourceType && e.resource.id === id; });
-                        console.log("Putting resource " + resourceType + "/" + id + " on destination server (" + versionEntries.length + " versions)");
+                        console.log("Putting resource ".concat(resourceType, "/").concat(id, " on destination server (").concat(versionEntries.length, " versions)"));
                         _i = 0, versionEntries_1 = versionEntries;
                         _d.label = 1;
                     case 1:
@@ -214,11 +214,11 @@ var Transfer = (function () {
                                 versionEntry.resource.status = 'unknown';
                             }
                         }
-                        console.log("Putting resource " + resourceType + "/" + id + "#" + (((_a = versionEntry.resource.meta) === null || _a === void 0 ? void 0 : _a.versionId) || '1') + "...");
+                        console.log("Putting resource ".concat(resourceType, "/").concat(id, "#").concat(((_a = versionEntry.resource.meta) === null || _a === void 0 ? void 0 : _a.versionId) || '1', "..."));
                         return [4, this.requestUpdate(this.options.destination, versionEntry.resource)];
                     case 3:
                         _d.sent();
-                        console.log("Done putting resource " + resourceType + "/" + id + "#" + (((_b = versionEntry.resource.meta) === null || _b === void 0 ? void 0 : _b.versionId) || '1'));
+                        console.log("Done putting resource ".concat(resourceType, "/").concat(id, "#").concat(((_b = versionEntry.resource.meta) === null || _b === void 0 ? void 0 : _b.versionId) || '1'));
                         _d.label = 4;
                     case 4:
                         _i++;
@@ -236,7 +236,7 @@ var Transfer = (function () {
                     case 0:
                         if (this.sortedResources.length <= 0)
                             return [2];
-                        console.log(this.sortedResources.length + " resources left to import.");
+                        console.log("".concat(this.sortedResources.length, " resources left to import."));
                         bundle = {
                             resourceType: 'Bundle',
                             type: 'batch',
@@ -248,7 +248,7 @@ var Transfer = (function () {
                             bundle.entry.push({
                                 request: {
                                     method: 'PUT',
-                                    url: nextResource.resourceType + "/" + nextResource.id
+                                    url: "".concat(nextResource.resourceType, "/").concat(nextResource.id)
                                 },
                                 resource: nextResource
                             });
@@ -374,7 +374,7 @@ var Transfer = (function () {
                         exporter = _a.sent();
                         this.fhirVersion = exporter.version;
                         if (this.options.input_file.toLowerCase().endsWith('.xml')) {
-                            fhir = helper_1.getFhirInstance(this.fhirVersion);
+                            fhir = (0, helper_1.getFhirInstance)(this.fhirVersion);
                             console.log('Parsing input file');
                             this.exportedBundle = fhir.xmlToObj(fs.readFileSync(this.options.input_file).toString());
                         }
@@ -416,7 +416,7 @@ var Transfer = (function () {
                                     id: ref.id
                                 };
                                 if (ref.resourceType === 'ValueSet' || ref.resourceType === 'ConceptMap') {
-                                    mockResource.url = ig.url + ("/" + ref.resourceType + "/" + ref.id);
+                                    mockResource.url = ig.url + "/".concat(ref.resourceType, "/").concat(ref.id);
                                 }
                                 else if (ref.resourceType === 'Bundle') {
                                     mockResource.type = 'collection';
@@ -448,7 +448,7 @@ var Transfer = (function () {
                         return [4, this.updateNext()];
                     case 7:
                         _a.sent();
-                        console.log("Turning on " + activeSubscriptions.length + " subscriptions");
+                        console.log("Turning on ".concat(activeSubscriptions.length, " subscriptions"));
                         _i = 0, activeSubscriptions_1 = activeSubscriptions;
                         _a.label = 8;
                     case 8:
@@ -456,11 +456,11 @@ var Transfer = (function () {
                         activeSubscription = activeSubscriptions_1[_i];
                         lastVersion = activeSubscription.versions[activeSubscription.versions.length - 1];
                         lastVersion.resource.status = 'requested';
-                        console.log("Updating the status of Subscription/" + lastVersion.resource.id + " to turn the subscription on");
+                        console.log("Updating the status of Subscription/".concat(lastVersion.resource.id, " to turn the subscription on"));
                         return [4, this.requestUpdate(this.options.destination, lastVersion.resource)];
                     case 9:
                         _a.sent();
-                        console.log("Done updating the status of Subscription/" + lastVersion.resource.id);
+                        console.log("Done updating the status of Subscription/".concat(lastVersion.resource.id));
                         _a.label = 10;
                     case 10:
                         _i++;

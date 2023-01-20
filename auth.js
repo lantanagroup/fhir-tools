@@ -53,7 +53,7 @@ var Auth = (function () {
                             return [2];
                         }
                         optionsContent = fs.readFileSync(optionsFile).toString();
-                        options = yaml_1.parse(optionsContent);
+                        options = (0, yaml_1.parse)(optionsContent);
                         _a = options.type;
                         switch (_a) {
                             case 'basic': return [3, 1];
@@ -63,7 +63,7 @@ var Auth = (function () {
                     case 1:
                         if (options.basic) {
                             token = btoa(options.basic.username + ':' + options.basic.password);
-                            this.authHeader = "Basic " + token;
+                            this.authHeader = "Basic ".concat(token);
                         }
                         return [2];
                     case 2:
@@ -76,7 +76,7 @@ var Auth = (function () {
                     case 3: return [4, this.getClientCredential(options.oauth.tokenUrl, options.oauth.clientId, options.oauth.secret, options.oauth.resource)];
                     case 4:
                         token = _c.sent();
-                        this.authHeader = "Bearer " + token;
+                        this.authHeader = "Bearer ".concat(token);
                         return [2];
                     case 5: return [2];
                     case 6: return [2];

@@ -8,7 +8,7 @@ var FixSubscriptions = (function () {
     FixSubscriptions.prototype.execute = function () {
         var matching = (this.bundle.entry || [])
             .filter(function (entry) { return entry.resource.resourceType === 'Subscription' && entry.resource.criteria && entry.resource.criteria.indexOf('?') < 0; });
-        console.log("Fixing " + matching.length + " Subscription resources missing ? in criteria");
+        console.log("Fixing ".concat(matching.length, " Subscription resources missing ? in criteria"));
         matching
             .forEach(function (entry) {
             if (entry.resource.criteria.indexOf('/') > 0) {

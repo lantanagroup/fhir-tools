@@ -6,6 +6,7 @@ import {Compare} from "./compare";
 import {Delete, DeleteOptions} from "./delete";
 import {BulkImport, BulkImportOptions} from "./bulk-import";
 import {BulkAnalyze, BulkAnalyzeOptions} from "./bulk-analyze";
+import {GetAllResourceIds, GetAllResourceIdsOptions} from "./get-all-resource-ids";
 
 class FixIdsOptions {
     public file_path: string;
@@ -204,6 +205,29 @@ export class Main {
             }, async (argv: ExportOptions) => {
                 const exporter = await Export.newExporter(argv);
                 await exporter.execute();
+            })
+            .command('get-all-resource-ids <fhir_base> <resource_type>', 'Gets all resource ids for the specified resource types', (yargs: any) => {
+                yargs
+                    .positional('fhir_base', {
+                        type: 'string',
+                        describe: 'The base url of the fhir server'
+                    })
+                    .positional('resource_type', {
+                        type: 'string',
+                        describe: 'The resource type to get all resource ids for'
+                    })
+                    .option('out', {
+                        alias: 'a',
+                        describe: 'File path to output the ids to'
+                    })
+                    .option('as-list-resource', {
+                        alias: 'l',
+                        type: 'boolean',
+                        default: false
+                    });
+            }, async (argv: GetAllResourceIdsOptions) => {
+                const getAllResourceIds = new GetAllResourceIds(argv);
+                await getAllResourceIds.execute();
             })
             .help()
             .argv;

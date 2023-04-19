@@ -25,12 +25,12 @@ export class Transfer {
     private readonly _bundleEntryCount = 500;
 
     private options: TransferOptions;
-    public exportedBundle: IBundle;
     private messages: {
         message: string;
         resource: any;
         response: any;
     }[] = [];
+    private exportedResources: any[];
     private resources: { [key: string]: { info: ResourceInfo, versions: any[] } };
     private sortedResources: any[];
     private fhirVersion: 'dstu3'|'r4';
@@ -145,8 +145,8 @@ export class Transfer {
     }
 
     private async updateResource(resourceType: string, id: string) {
-        const versionEntries = this.exportedBundle.entry
-            .filter(e => e.resource.resourceType === resourceType && e.resource.id === id);
+        const versionEntries = this.exportedResources
+            .filter(res => res.resourceType === resourceType && res.id === id);
 
         console.log(`Putting resource ${resourceType}/${id} on destination server (${versionEntries.length} versions)`);
 
@@ -230,19 +230,19 @@ export class Transfer {
     private discoverResources() {
         this.resources = {};
 
-        for (const entry of this.exportedBundle.entry) {
+        for (const resource of this.exportedResources) {
             const info = <ResourceInfo> {
-                resourceType: entry.resource.resourceType,
-                id: entry.resource.id
+                resourceType: resource.resourceType,
+                id: resource.id
             };
             const key = info.resourceType + '/' + info.id;
             if (!this.resources[key]) {
                 this.resources[key] = {
                     info: info,
-                    versions: [entry.resource]
+                    versions: [resource]
                 };
             } else {
-                this.resources[key].versions.push(entry.resource);
+                this.resources[key].versions.push(resource);
             }
         }
     }
@@ -304,6 +304,20 @@ export class Transfer {
         return references;
     }
 
+    private loadExportedResources(obj: any) {
+        if (obj.resourceType === 'Bundle') {
+            this.exportedResources = (obj.entry || []).map((e: any) => e.resource);
+        } else if (obj instanceof Array) {
+            this.exportedResources = obj as any[];
+        }
+
+        if (this.options.exclude) {
+            this.exportedResources = this.exportedResources.filter(res => {
+                return this.options.exclude.indexOf(res.resourceType) < 0;
+            });
+        }
+    }
+
     public async execute() {
         if (this.options.source) {
             console.log('Retrieving resources from the source FHIR server');
@@ -319,7 +333,7 @@ export class Transfer {
             console.log('Done retrieving resources');
 
             this.fhirVersion = exporter.version;
-            this.exportedBundle = exporter.exportBundle;
+            this.loadExportedResources(exporter.exportBundle);
         } else if (this.options.input_file) {
             const exporter = await Export.newExporter({
                 fhir_base: this.options.destination,
@@ -328,25 +342,23 @@ export class Transfer {
 
             this.fhirVersion = exporter.version;
 
+            let inputFileObject: any;
+
             if (this.options.input_file.toLowerCase().endsWith('.xml')) {
                 let fhir = getFhirInstance(this.fhirVersion);
 
                 console.log('Parsing input file');
-                this.exportedBundle = fhir.xmlToObj(fs.readFileSync(this.options.input_file).toString()) as IBundle;
+                inputFileObject = fhir.xmlToObj(fs.readFileSync(this.options.input_file).toString()) as IBundle;
             } else if (this.options.input_file.toLowerCase().endsWith('.json')) {
                 console.log('Parsing input file');
-                this.exportedBundle = JSON.parse(fs.readFileSync(this.options.input_file).toString());
+                inputFileObject = JSON.parse(fs.readFileSync(this.options.input_file).toString());
             } else {
                 console.log('Unexpected file type for input_file');
                 return;
             }
 
-            if (this.options.exclude) {
-                this.exportedBundle.entry = this.exportedBundle.entry.filter(e => {
-                    return this.options.exclude.indexOf(e.resource.resourceType) < 0;
-                });
-            }
-        } else if (!this.exportedBundle) {
+            this.loadExportedResources(inputFileObject);
+        } else if (!this.exportedResources) {
             console.log('Either source or input_file must be specified');
             return;
         }
@@ -360,8 +372,7 @@ export class Transfer {
         // Find ImplementationGuides that are referencing ValueSets not included in the bundle and
         // add a placeholder value set to the Bundle with a URL. This block can be removed after this HAPI issue is fixed:
         // https://github.com/hapifhir/hapi-fhir/issues/2332
-        this.exportedBundle.entry
-            .map(e => e.resource)
+        this.exportedResources
             .forEach(ig => {
                 const references = this.getResourceReferences(ig);
                 const notFoundReferences = references
@@ -383,9 +394,7 @@ export class Transfer {
                             mockResource.status = 'unknown';
                         }
 
-                        this.exportedBundle.entry.push({
-                            resource: mockResource
-                        });
+                        this.exportedResources.push(mockResource);
                         this.resources[ref.resourceType + '/' + ref.id] = { info: ref, versions: [mockResource] };
                     });
             });
@@ -422,11 +431,11 @@ export class Transfer {
         // Turn the status of active subscriptions back on
         for (let activeSubscription of activeSubscriptions) {
             const lastVersion = activeSubscription.versions[activeSubscription.versions.length - 1];
-            lastVersion.resource.status = 'requested';
+            lastVersion.status = 'requested';
 
-            console.log(`Updating the status of Subscription/${lastVersion.resource.id} to turn the subscription on`);
-            await this.requestUpdate(this.options.destination, lastVersion.resource);
-            console.log(`Done updating the status of Subscription/${lastVersion.resource.id}`);
+            console.log(`Updating the status of Subscription/${lastVersion.id} to turn the subscription on`);
+            await this.requestUpdate(this.options.destination, lastVersion);
+            console.log(`Done updating the status of Subscription/${lastVersion.id}`);
         }
 
         // For debugging a specific resource's issues

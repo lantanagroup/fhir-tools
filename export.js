@@ -294,7 +294,7 @@ var Export = (function () {
     Export.prototype.execute = function (shouldOutput) {
         if (shouldOutput === void 0) { shouldOutput = true; }
         return __awaiter(this, void 0, void 0, function () {
-            var _i, _a, resourceType, bundles, _b, bundles_1, bundle, _c, _d, entry, igs, _loop_1, this_1, _e, igs_1, ig, fhir, outputContent, st;
+            var _i, _a, resourceType, bundles, _b, bundles_1, bundle, _c, _d, entry, igs, _loop_1, this_1, _e, igs_1, ig, fhir, outputContent, st_1;
             var _this = this;
             return __generator(this, function (_f) {
                 switch (_f.label) {
@@ -422,10 +422,10 @@ var Export = (function () {
                                 if (fs.existsSync(this.options.out_file)) {
                                     fs.unlinkSync(this.options.out_file);
                                 }
-                                st = (0, JSONStream_1.stringify)();
-                                st.pipe(fs.createWriteStream(this.options.out_file, { encoding: 'utf8' }));
-                                st.write(this.exportBundle);
-                                st.end();
+                                st_1 = (0, JSONStream_1.stringify)();
+                                st_1.pipe(fs.createWriteStream(this.options.out_file, { encoding: 'utf8' }));
+                                this.exportBundle.entry.forEach(function (entry) { return st_1.write(entry.resource); });
+                                st_1.end();
                             }
                             console.log('done!');
                         }

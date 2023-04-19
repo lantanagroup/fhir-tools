@@ -339,7 +339,7 @@ export class Export {
 
                 const st = stringify();
                 st.pipe(fs.createWriteStream(this.options.out_file, { encoding: 'utf8' }));
-                st.write(this.exportBundle as any);
+                this.exportBundle.entry.forEach((entry) => st.write(entry.resource as any));
                 st.end();
             }
 

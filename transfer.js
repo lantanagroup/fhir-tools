@@ -179,8 +179,8 @@ var Transfer = (function () {
             return __generator(this, function (_d) {
                 switch (_d.label) {
                     case 0:
-                        versionEntries = this.exportedBundle.entry
-                            .filter(function (e) { return e.resource.resourceType === resourceType && e.resource.id === id; });
+                        versionEntries = this.exportedResources
+                            .filter(function (res) { return res.resourceType === resourceType && res.id === id; });
                         console.log("Putting resource ".concat(resourceType, "/").concat(id, " on destination server (").concat(versionEntries.length, " versions)"));
                         _i = 0, versionEntries_1 = versionEntries;
                         _d.label = 1;
@@ -266,21 +266,21 @@ var Transfer = (function () {
     };
     Transfer.prototype.discoverResources = function () {
         this.resources = {};
-        for (var _i = 0, _a = this.exportedBundle.entry; _i < _a.length; _i++) {
-            var entry = _a[_i];
+        for (var _i = 0, _a = this.exportedResources; _i < _a.length; _i++) {
+            var resource = _a[_i];
             var info = {
-                resourceType: entry.resource.resourceType,
-                id: entry.resource.id
+                resourceType: resource.resourceType,
+                id: resource.id
             };
             var key = info.resourceType + '/' + info.id;
             if (!this.resources[key]) {
                 this.resources[key] = {
                     info: info,
-                    versions: [entry.resource]
+                    versions: [resource]
                 };
             }
             else {
-                this.resources[key].versions.push(entry.resource);
+                this.resources[key].versions.push(resource);
             }
         }
     };
@@ -340,9 +340,23 @@ var Transfer = (function () {
         }
         return references;
     };
+    Transfer.prototype.loadExportedResources = function (obj) {
+        var _this = this;
+        if (obj.resourceType === 'Bundle') {
+            this.exportedResources = (obj.entry || []).map(function (e) { return e.resource; });
+        }
+        else if (obj instanceof Array) {
+            this.exportedResources = obj;
+        }
+        if (this.options.exclude) {
+            this.exportedResources = this.exportedResources.filter(function (res) {
+                return _this.options.exclude.indexOf(res.resourceType) < 0;
+            });
+        }
+    };
     Transfer.prototype.execute = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var exporter, exporter, fhir, subscriptions, activeSubscriptions, _i, activeSubscriptions_1, activeSubscription, lastVersion, issuesPath;
+            var exporter, exporter, inputFileObject, fhir, subscriptions, activeSubscriptions, _i, activeSubscriptions_1, activeSubscription, lastVersion, issuesPath;
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
@@ -362,7 +376,7 @@ var Transfer = (function () {
                         _a.sent();
                         console.log('Done retrieving resources');
                         this.fhirVersion = exporter.version;
-                        this.exportedBundle = exporter.exportBundle;
+                        this.loadExportedResources(exporter.exportBundle);
                         return [3, 6];
                     case 3:
                         if (!this.options.input_file) return [3, 5];
@@ -373,27 +387,24 @@ var Transfer = (function () {
                     case 4:
                         exporter = _a.sent();
                         this.fhirVersion = exporter.version;
+                        inputFileObject = void 0;
                         if (this.options.input_file.toLowerCase().endsWith('.xml')) {
                             fhir = (0, helper_1.getFhirInstance)(this.fhirVersion);
                             console.log('Parsing input file');
-                            this.exportedBundle = fhir.xmlToObj(fs.readFileSync(this.options.input_file).toString());
+                            inputFileObject = fhir.xmlToObj(fs.readFileSync(this.options.input_file).toString());
                         }
                         else if (this.options.input_file.toLowerCase().endsWith('.json')) {
                             console.log('Parsing input file');
-                            this.exportedBundle = JSON.parse(fs.readFileSync(this.options.input_file).toString());
+                            inputFileObject = JSON.parse(fs.readFileSync(this.options.input_file).toString());
                         }
                         else {
                             console.log('Unexpected file type for input_file');
                             return [2];
                         }
-                        if (this.options.exclude) {
-                            this.exportedBundle.entry = this.exportedBundle.entry.filter(function (e) {
-                                return _this.options.exclude.indexOf(e.resource.resourceType) < 0;
-                            });
-                        }
+                        this.loadExportedResources(inputFileObject);
                         return [3, 6];
                     case 5:
-                        if (!this.exportedBundle) {
+                        if (!this.exportedResources) {
                             console.log('Either source or input_file must be specified');
                             return [2];
                         }
@@ -402,8 +413,7 @@ var Transfer = (function () {
                         console.log('Discovering resources to be imported');
                         this.discoverResources();
                         console.log('Determining which resources have references that need placeholders');
-                        this.exportedBundle.entry
-                            .map(function (e) { return e.resource; })
+                        this.exportedResources
                             .forEach(function (ig) {
                             var references = _this.getResourceReferences(ig);
                             var notFoundReferences = references
@@ -424,9 +434,7 @@ var Transfer = (function () {
                                 else if (ref.resourceType === 'SearchParameter') {
                                     mockResource.status = 'unknown';
                                 }
-                                _this.exportedBundle.entry.push({
-                                    resource: mockResource
-                                });
+                                _this.exportedResources.push(mockResource);
                                 _this.resources[ref.resourceType + '/' + ref.id] = { info: ref, versions: [mockResource] };
                             });
                         });
@@ -455,12 +463,12 @@ var Transfer = (function () {
                         if (!(_i < activeSubscriptions_1.length)) return [3, 11];
                         activeSubscription = activeSubscriptions_1[_i];
                         lastVersion = activeSubscription.versions[activeSubscription.versions.length - 1];
-                        lastVersion.resource.status = 'requested';
-                        console.log("Updating the status of Subscription/".concat(lastVersion.resource.id, " to turn the subscription on"));
-                        return [4, this.requestUpdate(this.options.destination, lastVersion.resource)];
+                        lastVersion.status = 'requested';
+                        console.log("Updating the status of Subscription/".concat(lastVersion.id, " to turn the subscription on"));
+                        return [4, this.requestUpdate(this.options.destination, lastVersion)];
                     case 9:
                         _a.sent();
-                        console.log("Done updating the status of Subscription/".concat(lastVersion.resource.id));
+                        console.log("Done updating the status of Subscription/".concat(lastVersion.id));
                         _a.label = 10;
                     case 10:
                         _i++;

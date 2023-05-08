@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 "use strict";
 exports.__esModule = true;
 var yargs = require("yargs");
@@ -22,5 +23,7 @@ yargs
     .command(export_1.Export.command, export_1.Export.description, export_1.Export.args, export_1.Export.handler)
     .command(get_all_resource_ids_1.GetAllResourceIds.command, get_all_resource_ids_1.GetAllResourceIds.description, get_all_resource_ids_1.GetAllResourceIds.args, get_all_resource_ids_1.GetAllResourceIds.handler)
     .help()
+    .showHelpOnFail(true)
+    .demandCommand()
     .argv;
 //# sourceMappingURL=index.js.map

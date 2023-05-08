@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import * as yargs from 'yargs';
 import {Export} from './export';
 import {FixIds} from './fixids';
@@ -21,4 +23,6 @@ yargs
     .command(Export.command, Export.description, Export.args, Export.handler)
     .command(GetAllResourceIds.command, GetAllResourceIds.description, GetAllResourceIds.args, GetAllResourceIds.handler)
     .help()
+    .showHelpOnFail(true)
+    .demandCommand()
     .argv;

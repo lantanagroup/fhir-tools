@@ -1,7 +1,0 @@
-type: 'oauth'
-oauth:
-  grantType: client_credential
-  tokenUrl: https://login.microsoftonline.com/5934dd1c-8d18-4de5-8696-4516a5707a57/oauth2/token
-  clientId: dcc7f5bf-0364-43e0-aab9-018ca1e091a9
-  secret: rzX7Q~T4unCgo_HnB6_qfUIpFImXhdevFNw6b
-  resource: https://healthdataservices-ehr-dev.fhir.azurehealthcareapis.com

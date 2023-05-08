@@ -14,7 +14,7 @@ export class FixIds {
     private ids: IdModel[];
 
     public static command = 'fixids <file_path>';
-    public static description = 'Fix the ids of resources in a bundle so they can be imported with HAPI';
+    public static description = 'Fix number-only ids of resources in a bundle so they can be imported with HAPI';
 
     public static args(args: Argv): Argv {
         return args
@@ -80,7 +80,7 @@ export class FixIds {
 
     public fix() {
         (this.content.entry || [])
-            .filter((entry: any, index: number) => {
+            .filter((entry: any) => {
                 entry.resource && entry.resource.id && entry.resource.id.match(/^\d+$/);
             })
             .map((entry: any) => {

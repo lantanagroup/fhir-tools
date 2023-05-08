@@ -33,7 +33,7 @@ export class Export {
     public exportBundle: IBundle;
 
     public static command = 'export <fhir_base> <out_file>';
-    public static description = 'Export data from a FHIR server';
+    public static description = 'Export data from a FHIR server. Options to specify types of resources to export, whether to include history, and more.';
 
     public static args(yargs: Argv): Argv {
         return yargs
@@ -169,29 +169,6 @@ export class Export {
             this.auth.authenticateRequest(options);
 
             request(this.options.fhir_base, options, (err, response, body) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(body);
-                }
-            });
-        });
-    }
-
-    private async getResource(resourceType?: string, id?: string) {
-        let url = this.options.fhir_base;
-
-        if (resourceType && id) {
-            url += (this.options.fhir_base.endsWith('/') ? '' : '/') + resourceType + '/' + id;
-        } else if (resourceType) {
-            url += (this.options.fhir_base.endsWith('/') ? '' : '/') + resourceType;
-        }
-
-        return new Promise((resolve, reject) => {
-            const options = { json: true };
-            this.auth.authenticateRequest(options);
-
-            request(url, options, (err, response, body) => {
                 if (err) {
                     reject(err);
                 } else {
@@ -428,7 +405,7 @@ export class Export {
             json: true
         };
 
-        return new Promise<void>((resolve, reject) => {
+        return new Promise<void>((resolve) => {
             this.auth.authenticateRequest(options);
             request(options, (err, response, historyBundle) => {
                 if (err || !historyBundle || historyBundle.resourceType !== 'Bundle') {

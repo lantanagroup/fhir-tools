@@ -195,7 +195,7 @@ var Delete = (function () {
         });
     };
     Delete.command = 'delete <fhir_base>';
-    Delete.description = 'Delete resources from a FHIR server';
+    Delete.description = 'Delete all resources from a FHIR server';
     return Delete;
 }());
 exports.Delete = Delete;

@@ -14,7 +14,7 @@ export class Delete {
     private options: DeleteOptions;
 
     public static command = 'delete <fhir_base>';
-    public static description = 'Delete resources from a FHIR server';
+    public static description = 'Delete all resources from a FHIR server';
 
     public static args(yargs: Argv): Argv {
         return yargs

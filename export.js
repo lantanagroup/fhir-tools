@@ -208,33 +208,6 @@ var Export = (function () {
             });
         });
     };
-    Export.prototype.getResource = function (resourceType, id) {
-        return __awaiter(this, void 0, void 0, function () {
-            var url;
-            var _this = this;
-            return __generator(this, function (_a) {
-                url = this.options.fhir_base;
-                if (resourceType && id) {
-                    url += (this.options.fhir_base.endsWith('/') ? '' : '/') + resourceType + '/' + id;
-                }
-                else if (resourceType) {
-                    url += (this.options.fhir_base.endsWith('/') ? '' : '/') + resourceType;
-                }
-                return [2, new Promise(function (resolve, reject) {
-                        var options = { json: true };
-                        _this.auth.authenticateRequest(options);
-                        request(url, options, function (err, response, body) {
-                            if (err) {
-                                reject(err);
-                            }
-                            else {
-                                resolve(body);
-                            }
-                        });
-                    })];
-            });
-        });
-    };
     Export.prototype.request = function (url) {
         return __awaiter(this, void 0, void 0, function () {
             var _this = this;
@@ -523,7 +496,7 @@ var Export = (function () {
                     url: this.options.fhir_base + (this.options.fhir_base.endsWith('/') ? '' : '/') + exportEntry.request.url + '/_history',
                     json: true
                 };
-                return [2, new Promise(function (resolve, reject) {
+                return [2, new Promise(function (resolve) {
                         _this.auth.authenticateRequest(options);
                         request(options, function (err, response, historyBundle) {
                             var _a;
@@ -571,7 +544,7 @@ var Export = (function () {
         });
     };
     Export.command = 'export <fhir_base> <out_file>';
-    Export.description = 'Export data from a FHIR server';
+    Export.description = 'Export data from a FHIR server. Options to specify types of resources to export, whether to include history, and more.';
     return Export;
 }());
 exports.Export = Export;

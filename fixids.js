@@ -79,7 +79,7 @@ var FixIds = (function () {
     };
     FixIds.prototype.fix = function () {
         (this.content.entry || [])
-            .filter(function (entry, index) {
+            .filter(function (entry) {
             entry.resource && entry.resource.id && entry.resource.id.match(/^\d+$/);
         })
             .map(function (entry) {
@@ -99,7 +99,7 @@ var FixIds = (function () {
         fs.writeFileSync(this.filePath, fileContent);
     };
     FixIds.command = 'fixids <file_path>';
-    FixIds.description = 'Fix the ids of resources in a bundle so they can be imported with HAPI';
+    FixIds.description = 'Fix number-only ids of resources in a bundle so they can be imported with HAPI';
     return FixIds;
 }());
 exports.FixIds = FixIds;

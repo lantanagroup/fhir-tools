@@ -44,6 +44,21 @@ var BulkImport = (function () {
     function BulkImport(options) {
         this.options = options;
     }
+    BulkImport.args = function (yargs) {
+        return yargs
+            .positional('destination', {
+            type: 'string',
+            describe: 'The FHIR server base of the destination FHIR server (where resources are stored)'
+        })
+            .positional('directory', {
+            type: 'string',
+            describe: 'Path to a directory where .ndjson files are stored to be imported'
+        });
+    };
+    BulkImport.handler = function (args) {
+        new BulkImport(args).execute()
+            .then(function () { return process.exit(0); });
+    };
     BulkImport.prototype.execute = function () {
         return __awaiter(this, void 0, void 0, function () {
             var files, transfer;
@@ -108,6 +123,8 @@ var BulkImport = (function () {
             });
         });
     };
+    BulkImport.command = 'bulk-import <destination> <directory>';
+    BulkImport.description = 'Import resources from bulk ndjson files in a directory';
     return BulkImport;
 }());
 exports.BulkImport = BulkImport;

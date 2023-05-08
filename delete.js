@@ -43,6 +43,29 @@ var Delete = (function () {
     function Delete(options) {
         this.options = options;
     }
+    Delete.args = function (yargs) {
+        return yargs
+            .positional('fhir_base', {
+            type: 'string',
+            describe: 'The base url of the FHIR server'
+        })
+            .option('page_size', {
+            alias: 's',
+            type: 'number',
+            describe: 'The size of results to return per page',
+            "default": 50
+        })
+            .option('expunge', {
+            alias: 'e',
+            boolean: true,
+            description: 'Indicates if $expunge should be executed on the FHIR server after deleting resources'
+        });
+    };
+    Delete.handler = function (args) {
+        var deleter = new Delete(args);
+        deleter.execute()
+            .then(function () { return process.exit(0); });
+    };
     Delete.prototype.request = function (options) {
         return __awaiter(this, void 0, void 0, function () {
             var _this = this;
@@ -171,6 +194,8 @@ var Delete = (function () {
             });
         });
     };
+    Delete.command = 'delete <fhir_base>';
+    Delete.description = 'Delete resources from a FHIR server';
     return Delete;
 }());
 exports.Delete = Delete;

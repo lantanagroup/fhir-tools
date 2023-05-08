@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as _ from 'underscore';
+import {Arguments, Argv} from "yargs";
 
 class IdModel {
     public resourceType: string;
@@ -11,6 +12,26 @@ export class FixIds {
     private filePath: string;
     private content: any;
     private ids: IdModel[];
+
+    public static command = 'fixids <file_path>';
+    public static description = 'Fix the ids of resources in a bundle so they can be imported with HAPI';
+
+    public static args(args: Argv): Argv {
+        return args
+            .positional('output', {
+                description: ''
+            })
+            .option('path', {
+                array: true,
+                demandOption: true
+            });
+    }
+
+    public static handler(args: Arguments) {
+        const fixids = new FixIds(args.file_path);
+        fixids.fix();
+        fixids.save();
+    }
 
     constructor(bundle: any) {
         if (typeof bundle === 'string') {

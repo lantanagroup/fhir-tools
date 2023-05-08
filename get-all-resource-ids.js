@@ -50,6 +50,30 @@ var GetAllResourceIds = (function () {
     function GetAllResourceIds(options) {
         this.options = options;
     }
+    GetAllResourceIds.args = function (yargs) {
+        return yargs
+            .positional('fhir_base', {
+            type: 'string',
+            describe: 'The base url of the fhir server'
+        })
+            .positional('resource_type', {
+            type: 'string',
+            describe: 'The resource type to get all resource ids for'
+        })
+            .option('out', {
+            alias: 'a',
+            describe: 'File path to output the ids to'
+        })
+            .option('as-list-resource', {
+            alias: 'l',
+            type: 'boolean',
+            "default": false
+        });
+    };
+    GetAllResourceIds.handler = function (args) {
+        new GetAllResourceIds(args).execute()
+            .then(function () { return process.exit(0); });
+    };
     GetAllResourceIds.prototype.submitRequest = function (url) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
@@ -112,6 +136,8 @@ var GetAllResourceIds = (function () {
                             if (this.options["as-list-resource"]) {
                                 listResource = {
                                     resourceType: 'List',
+                                    status: 'current',
+                                    mode: 'working',
                                     entry: ids.map(function (i) {
                                         return {
                                             item: {
@@ -141,6 +167,8 @@ var GetAllResourceIds = (function () {
             });
         });
     };
+    GetAllResourceIds.command = 'get-all-resource-ids <fhir_base> <resource_type>';
+    GetAllResourceIds.description = 'Gets all resource ids for the specified resource types';
     return GetAllResourceIds;
 }());
 exports.GetAllResourceIds = GetAllResourceIds;

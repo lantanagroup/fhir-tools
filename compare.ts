@@ -1,4 +1,6 @@
 import {Export} from "./export";
+import {Arguments, Argv} from "yargs";
+import {BulkAnalyzeOptions} from "./bulk-analyze";
 
 export interface CompareOptions {
     fhir1_base: string;
@@ -10,6 +12,43 @@ export interface CompareOptions {
 
 export class Compare {
     private options: CompareOptions;
+
+    public static command = 'compare <fhir1_base> <fhir2_base>';
+    public static description = 'Compare the resources from one FHIR server to another';
+
+    public static args(yargs: Argv): Argv {
+        return yargs
+            .positional('fhir1_base', {
+                type: 'string',
+                describe: 'The FHIR server base of the first FHIR server'
+            })
+            .positional('fhir2_base', {
+                type: 'string',
+                describe: 'The FHIR server base of the second FHIR server'
+            })
+            .option('page_size', {
+                alias: 's',
+                type: 'number',
+                describe: 'The size of results to return per page',
+                default: 50
+            })
+            .option('exclude', {
+                alias: 'e',
+                array: true,
+                type: 'string',
+                description: 'Resource types that should be excluded from the export (ex: AuditEvent)'
+            })
+            .option('history', {
+                alias: 'h',
+                boolean: true,
+                description: 'Indicates if _history should be included'
+            });
+    }
+
+    public static handler(args: Arguments) {
+        new Compare(<CompareOptions><any>args).execute()
+            .then(() => process.exit(0));
+    }
 
     constructor(options: CompareOptions) {
         this.options = options;

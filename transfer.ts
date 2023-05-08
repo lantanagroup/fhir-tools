@@ -4,7 +4,8 @@ import {IBundle} from "./fhir/bundle";
 import * as path from "path";
 import * as fs from "fs";
 import {getFhirInstance} from "./helper";
-import * as util from 'util';
+import {Arguments, Argv} from "yargs";
+import {DeleteOptions} from "./delete";
 
 export interface TransferOptions {
     source?: string;
@@ -34,7 +35,57 @@ export class Transfer {
     private resources: { [key: string]: { info: ResourceInfo, versions: any[] } };
     private sortedResources: any[];
     private fhirVersion: 'dstu3'|'r4';
-    private sleep = util.promisify(setTimeout);
+
+    public static command2 = 'import <destination> <input_file>';
+    public static description2 = 'Import resources from a Bundle file onto the specified server';
+    public static command1 = 'transfer <destination> <source>';
+    public static description1 = 'Transfer resources from one server to another';
+
+    public static args2(yargs: Argv): Argv {
+        return yargs
+            .positional('destination', {
+                type: 'string',
+                describe: 'The FHIR server base of the destination FHIR server (where resources are stored)'
+            })
+            .positional('input_file', {
+                type: 'string',
+                describe: 'Path to a file that represents the export of the source FHIR server'
+            });
+    }
+
+    public static args1(yargs: Argv): Argv {
+        return yargs
+            .positional('destination', {
+                type: 'string',
+                describe: 'The FHIR server base of the destination FHIR server (where resources are stored)'
+            })
+            .positional('source', {
+                type: 'string',
+                describe: 'The base URL of the source FHIR server (where resources are retrieved)'
+            })
+            .option('page_size', {
+                alias: 's',
+                type: 'number',
+                describe: 'The size of results to return per page when requesting resources from the source server',
+                default: 50
+            })
+            .option('history', {
+                alias: 'h',
+                type: 'boolean',
+                describe: 'Whether ot include the history of each resource when requesting resources from the source server'
+            })
+            .option('exclude', {
+                alias: 'e',
+                array: true,
+                type: 'string',
+                description: 'Resource types that should be excluded from the export (ex: AuditEvent) of the source server'
+            });
+    }
+
+    public static handler(args: Arguments) {
+        new Transfer(<TransferOptions><any>args).execute()
+            .then(() => process.exit(0));
+    }
 
     constructor(options: TransferOptions) {
         this.options = options;
@@ -53,7 +104,7 @@ export class Transfer {
             }
         }
 
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             request({ url: url, method: isTransaction ? 'POST' : 'PUT', body: resource, json: true }, (err, response, body) => {
                 if (err) {
                     if (body && body.resourceType === 'OperationOutcome' && !body.id) {
@@ -166,8 +217,8 @@ export class Transfer {
             // https://github.com/hapifhir/hapi-fhir/issues/2333
             if (versionEntry.resource.contained) {
                 versionEntry.resource.contained
-                    .filter(c => c.resourceType === 'Binary' && !c.data && c._data)
-                    .forEach(c => delete c._data);
+                    .filter((c: any) => c.resourceType === 'Binary' && !c.data && c._data)
+                    .forEach((c: any) => delete c._data);
             }
 
             // Make sure bundles have a type
@@ -451,7 +502,7 @@ export class Transfer {
                 new Date().toISOString()
                     .replace(/\./g, '')
                     .replace('T', '_')
-                    .replace(/[:]/g, '-')
+                    .replace(/:/g, '-')
                     .substring(0, 19) +
                 '.json');
 

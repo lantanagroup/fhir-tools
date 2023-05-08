@@ -1,5 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
+import {Arguments, Argv} from "yargs";
+import {BulkImportOptions} from "./bulk-import";
 
 export interface BulkAnalyzeOptions {
     inputDir: string;
@@ -8,6 +10,25 @@ export interface BulkAnalyzeOptions {
 
 export class BulkAnalyze {
     private options: BulkAnalyzeOptions;
+
+    public static command = 'bulk-analyze <inputDir> <outputDir>';
+    public static description = 'Analyze resources from bulk ndjson files in a directory';
+
+    public static args(yargs: Argv): Argv {
+        return yargs
+            .positional('inputDir', {
+                type: 'string',
+                describe: 'Path to a directory where .ndjson files are stored'
+            })
+            .positional('outputDir', {
+                type: 'string',
+                describe: 'Path to where the output analysis TSV files shoudl be stored'
+            });
+    }
+
+    public static handler(args: Arguments) {
+        new BulkAnalyze(<BulkAnalyzeOptions><any>args).execute();
+    }
 
     constructor(options: BulkAnalyzeOptions) {
         this.options = options;
@@ -103,8 +124,8 @@ export class BulkAnalyze {
         const allPatients = resources.filter(r => r.resourceType === 'Patient');
         const patients = allPatients
             .map(patient => {
-                const raceExt = patient.extension ? patient.extension.find(e => e.url === 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-race') : null;
-                const ethnicityExt = patient.extension ? patient.extension.find(e => e.url === 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity') : null;
+                const raceExt = patient.extension ? patient.extension.find((e: { url: string; }) => e.url === 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-race') : null;
+                const ethnicityExt = patient.extension ? patient.extension.find((e: { url: string; }) => e.url === 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity') : null;
                 return {
                     id: patient.id,
                     first: patient.name[0].given[0],
@@ -135,7 +156,7 @@ export class BulkAnalyze {
                     value = obs.valueQuantity.value;
                     unit = obs.valueQuantity.unit;
                     system = obs.valueQuantity.system;
-                } else if (obs.hasOwnProperty('valueString') {
+                } else if (obs.hasOwnProperty('valueString')) {
                     value = obs.valueString;
                 } else {
                     console.log('unexpected value for observation');

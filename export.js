@@ -70,6 +70,60 @@ var Export = (function () {
         this.bundles = {};
         this.options = options;
     }
+    Export.args = function (yargs) {
+        return yargs
+            .positional('fhir_base', {
+            type: 'string',
+            describe: 'The base url of the fhir server'
+        })
+            .positional('out_file', {
+            type: 'string',
+            describe: 'Location on computer to store the export'
+        })
+            .option('page_size', {
+            alias: 's',
+            type: 'number',
+            describe: 'The size of results to return per page',
+            "default": 50
+        })
+            .option('history', {
+            alias: 'h',
+            boolean: true,
+            description: 'Indicates if _history should be included'
+        })
+            .option('resource_type', {
+            alias: 'r',
+            array: true,
+            description: 'Specify one or more resource types to get backup from the FHIR server. If not specified, will default to all resources supported by the server.',
+            type: 'string'
+        })
+            .option('ig', {
+            boolean: true,
+            description: 'If specified, indicates that the resources in each ImplementationGuide should be found/retrieved and included in the export.'
+        })
+            .option('exclude', {
+            alias: 'e',
+            array: true,
+            type: 'string',
+            description: 'Resource types that should be excluded from the export (ex: AuditEvent)'
+        })
+            .option('history_queue', {
+            type: 'number',
+            "default": 10,
+            description: 'The number of requests for history that can be made in parallel'
+        })
+            .option('xml', {
+            boolean: true,
+            description: 'Outputs as XML instead of the default JSON format'
+        })
+            .option('auth_config', {
+            description: 'Path to the auth YML config file to use when authenticating requests to the FHIR server'
+        });
+    };
+    Export.handler = function (args) {
+        new Export(args).execute()
+            .then(function () { return process.exit(0); });
+    };
     Export.newExporter = function (options) {
         return __awaiter(this, void 0, void 0, function () {
             var exporter;
@@ -516,6 +570,8 @@ var Export = (function () {
             });
         });
     };
+    Export.command = 'export <fhir_base> <out_file>';
+    Export.description = 'Export data from a FHIR server';
     return Export;
 }());
 exports.Export = Export;

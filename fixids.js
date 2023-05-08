@@ -19,6 +19,21 @@ var FixIds = (function () {
             this.content = bundle;
         }
     }
+    FixIds.args = function (args) {
+        return args
+            .positional('output', {
+            description: ''
+        })
+            .option('path', {
+            array: true,
+            demandOption: true
+        });
+    };
+    FixIds.handler = function (args) {
+        var fixids = new FixIds(args.file_path);
+        fixids.fix();
+        fixids.save();
+    };
     FixIds.prototype.updateReferences = function (obj) {
         if (obj instanceof Array) {
             var _loop_1 = function (i) {
@@ -83,6 +98,8 @@ var FixIds = (function () {
         var fileContent = JSON.stringify(this.content, null);
         fs.writeFileSync(this.filePath, fileContent);
     };
+    FixIds.command = 'fixids <file_path>';
+    FixIds.description = 'Fix the ids of resources in a bundle so they can be imported with HAPI';
     return FixIds;
 }());
 exports.FixIds = FixIds;

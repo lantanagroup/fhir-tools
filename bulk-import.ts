@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import {Transfer} from "./transfer";
+import {Transfer, TransferOptions} from "./transfer";
+import {Arguments, Argv} from "yargs";
 
 export interface BulkImportOptions {
     directory: string;
@@ -10,6 +11,26 @@ export interface BulkImportOptions {
 export class BulkImport {
     private options: BulkImportOptions;
 
+    public static command = 'bulk-import <destination> <directory>';
+    public static description = 'Import resources from bulk ndjson files in a directory';
+
+    public static args(yargs: Argv): Argv {
+        return yargs
+            .positional('destination', {
+                type: 'string',
+                describe: 'The FHIR server base of the destination FHIR server (where resources are stored)'
+            })
+            .positional('directory', {
+                type: 'string',
+                describe: 'Path to a directory where .ndjson files are stored to be imported'
+            });
+    }
+
+    public static handler(args: Arguments) {
+        new BulkImport(<BulkImportOptions><any>args).execute()
+            .then(() => process.exit(0));
+    }
+
     constructor(options: BulkImportOptions) {
         this.options = options;
     }
@@ -18,7 +39,7 @@ export class BulkImport {
         const files = fs.readdirSync(this.options.directory)
             .filter(f => f.toLowerCase().endsWith('.ndjson'));
         const transfer = new Transfer({
-            destination: this.options.destination
+            destination: this.options.destination,
         });
         transfer.exportedBundle = {
             resourceType: 'Bundle',
@@ -76,12 +97,12 @@ export class BulkImport {
             });
          */
 
-        transfer.exportedBundle.entry = transfer.exportedBundle.entry.filter(e => e.resource.resourceType === 'Patient');
+        transfer.exportedBundle.entry = transfer.exportedBundle.entry.filter((e: { resource: { resourceType: string; }; }) => e.resource.resourceType === 'Patient');
 
         /* Ensure a status is appropriately set for resources */
         transfer.exportedBundle.entry
-            .filter(e => !e.resource.status)
-            .forEach(e => {
+            .filter((e: { resource: { status: any; }; }) => !e.resource.status)
+            .forEach((e: { resource: { resourceType: any; status: string; }; }) => {
                 switch (e.resource.resourceType) {
                     case 'Encounter':
                         e.resource.status = 'finished';
@@ -97,8 +118,8 @@ export class BulkImport {
 
         /* Ensure that all Patient resources have an identifier */
         transfer.exportedBundle.entry
-            .filter(e => e.resource.resourceType === 'Patient' && !e.resource.identifier)
-            .forEach(e => {
+            .filter((e: { resource: { resourceType: string; identifier: any; }; }) => e.resource.resourceType === 'Patient' && !e.resource.identifier)
+            .forEach((e: { resource: { identifier: { system: string; value: any; }[]; id: any; }; }) => {
                 e.resource.identifier = [{
                     system: 'https://sanerproject.org',
                     value: e.resource.id

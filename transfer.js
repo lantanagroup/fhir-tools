@@ -42,14 +42,55 @@ var export_1 = require("./export");
 var path = require("path");
 var fs = require("fs");
 var helper_1 = require("./helper");
-var util = require("util");
 var Transfer = (function () {
     function Transfer(options) {
         this._bundleEntryCount = 500;
         this.messages = [];
-        this.sleep = util.promisify(setTimeout);
         this.options = options;
     }
+    Transfer.args2 = function (yargs) {
+        return yargs
+            .positional('destination', {
+            type: 'string',
+            describe: 'The FHIR server base of the destination FHIR server (where resources are stored)'
+        })
+            .positional('input_file', {
+            type: 'string',
+            describe: 'Path to a file that represents the export of the source FHIR server'
+        });
+    };
+    Transfer.args1 = function (yargs) {
+        return yargs
+            .positional('destination', {
+            type: 'string',
+            describe: 'The FHIR server base of the destination FHIR server (where resources are stored)'
+        })
+            .positional('source', {
+            type: 'string',
+            describe: 'The base URL of the source FHIR server (where resources are retrieved)'
+        })
+            .option('page_size', {
+            alias: 's',
+            type: 'number',
+            describe: 'The size of results to return per page when requesting resources from the source server',
+            "default": 50
+        })
+            .option('history', {
+            alias: 'h',
+            type: 'boolean',
+            describe: 'Whether ot include the history of each resource when requesting resources from the source server'
+        })
+            .option('exclude', {
+            alias: 'e',
+            array: true,
+            type: 'string',
+            description: 'Resource types that should be excluded from the export (ex: AuditEvent) of the source server'
+        });
+    };
+    Transfer.handler = function (args) {
+        new Transfer(args).execute()
+            .then(function () { return process.exit(0); });
+    };
     Transfer.prototype.requestUpdate = function (fhirBase, resource, isTransaction) {
         if (isTransaction === void 0) { isTransaction = false; }
         return __awaiter(this, void 0, void 0, function () {
@@ -64,7 +105,7 @@ var Transfer = (function () {
                         resource.type = 'collection';
                     }
                 }
-                return [2, new Promise(function (resolve, reject) {
+                return [2, new Promise(function (resolve) {
                         request({ url: url, method: isTransaction ? 'POST' : 'PUT', body: resource, json: true }, function (err, response, body) {
                             if (err) {
                                 if (body && body.resourceType === 'OperationOutcome' && !body.id) {
@@ -482,7 +523,7 @@ var Transfer = (function () {
                                 new Date().toISOString()
                                     .replace(/\./g, '')
                                     .replace('T', '_')
-                                    .replace(/[:]/g, '-')
+                                    .replace(/:/g, '-')
                                     .substring(0, 19) +
                                 '.json');
                             console.log('Found issues when transferring... Storing issues at path: ' + issuesPath);
@@ -493,6 +534,10 @@ var Transfer = (function () {
             });
         });
     };
+    Transfer.command2 = 'import <destination> <input_file>';
+    Transfer.description2 = 'Import resources from a Bundle file onto the specified server';
+    Transfer.command1 = 'transfer <destination> <source>';
+    Transfer.description1 = 'Transfer resources from one server to another';
     return Transfer;
 }());
 exports.Transfer = Transfer;

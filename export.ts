@@ -1,12 +1,13 @@
 import * as request from 'request';
+import {CoreOptions} from 'request';
 import * as urljoin from 'url-join';
 import * as fs from 'fs';
 import * as semver from 'semver';
 import {IBundle} from "./fhir/bundle";
 import {getFhirInstance} from "./helper";
 import {Auth} from "./auth";
-import {CoreOptions} from "request";
 import {stringify} from 'JSONStream';
+import {Arguments, Argv} from "yargs";
 
 export class ExportOptions {
     public fhir_base: string;
@@ -30,6 +31,65 @@ export class Export {
     private auth: Auth;
     public version: 'dstu3'|'r4';
     public exportBundle: IBundle;
+
+    public static command = 'export <fhir_base> <out_file>';
+    public static description = 'Export data from a FHIR server';
+
+    public static args(yargs: Argv): Argv {
+        return yargs
+            .positional('fhir_base', {
+                type: 'string',
+                describe: 'The base url of the fhir server'
+            })
+            .positional('out_file', {
+                type: 'string',
+                describe: 'Location on computer to store the export'
+            })
+            .option('page_size', {
+                alias: 's',
+                type: 'number',
+                describe: 'The size of results to return per page',
+                default: 50
+            })
+            .option('history', {
+                alias: 'h',
+                boolean: true,
+                description: 'Indicates if _history should be included'
+            })
+            .option('resource_type', {
+                alias: 'r',
+                array: true,
+                description: 'Specify one or more resource types to get backup from the FHIR server. If not specified, will default to all resources supported by the server.',
+                type: 'string'
+            })
+            .option('ig', {
+                boolean: true,
+                description: 'If specified, indicates that the resources in each ImplementationGuide should be found/retrieved and included in the export.'
+            })
+            .option('exclude', {
+                alias: 'e',
+                array: true,
+                type: 'string',
+                description: 'Resource types that should be excluded from the export (ex: AuditEvent)'
+            })
+            .option('history_queue', {
+                type: 'number',
+                default: 10,
+                description: 'The number of requests for history that can be made in parallel'
+            })
+            .option('xml', {
+                boolean: true,
+                description: 'Outputs as XML instead of the default JSON format'
+            })
+            .option('auth_config', {
+                description: 'Path to the auth YML config file to use when authenticating requests to the FHIR server'
+            });
+    }
+
+    public static handler(args: Arguments) {
+        new Export(<ExportOptions><any>args).execute()
+            .then(() => process.exit(0));
+    }
 
     constructor(options: ExportOptions) {
         this.options = options;

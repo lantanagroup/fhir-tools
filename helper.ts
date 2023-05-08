@@ -1,7 +1,7 @@
 import {Fhir} from "fhir/fhir";
 import {ParseConformance} from "fhir/parseConformance";
-import fs from "fs";
-import path from "path";
+import * as fs from "fs";
+import * as path from "path";
 
 export function getFhirInstance(version: 'dstu3'|'r4' = 'r4'): Fhir {
     let fhir: Fhir;

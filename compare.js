@@ -42,6 +42,38 @@ var Compare = (function () {
     function Compare(options) {
         this.options = options;
     }
+    Compare.args = function (yargs) {
+        return yargs
+            .positional('fhir1_base', {
+            type: 'string',
+            describe: 'The FHIR server base of the first FHIR server'
+        })
+            .positional('fhir2_base', {
+            type: 'string',
+            describe: 'The FHIR server base of the second FHIR server'
+        })
+            .option('page_size', {
+            alias: 's',
+            type: 'number',
+            describe: 'The size of results to return per page',
+            "default": 50
+        })
+            .option('exclude', {
+            alias: 'e',
+            array: true,
+            type: 'string',
+            description: 'Resource types that should be excluded from the export (ex: AuditEvent)'
+        })
+            .option('history', {
+            alias: 'h',
+            boolean: true,
+            description: 'Indicates if _history should be included'
+        });
+    };
+    Compare.handler = function (args) {
+        new Compare(args).execute()
+            .then(function () { return process.exit(0); });
+    };
     Compare.prototype.execute = function () {
         return __awaiter(this, void 0, void 0, function () {
             var export1, export2, issueCount;
@@ -103,6 +135,8 @@ var Compare = (function () {
             });
         });
     };
+    Compare.command = 'compare <fhir1_base> <fhir2_base>';
+    Compare.description = 'Compare the resources from one FHIR server to another';
     return Compare;
 }());
 exports.Compare = Compare;

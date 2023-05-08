@@ -7,6 +7,20 @@ var BulkAnalyze = (function () {
     function BulkAnalyze(options) {
         this.options = options;
     }
+    BulkAnalyze.args = function (yargs) {
+        return yargs
+            .positional('inputDir', {
+            type: 'string',
+            describe: 'Path to a directory where .ndjson files are stored'
+        })
+            .positional('outputDir', {
+            type: 'string',
+            describe: 'Path to where the output analysis TSV files shoudl be stored'
+        });
+    };
+    BulkAnalyze.handler = function (args) {
+        new BulkAnalyze(args).execute();
+    };
     BulkAnalyze.prototype.execute = function () {
         var _this = this;
         var files = fs.readdirSync(this.options.inputDir)
@@ -141,6 +155,8 @@ var BulkAnalyze = (function () {
         });
         console.log('Done analyzing bulk data directory');
     };
+    BulkAnalyze.command = 'bulk-analyze <inputDir> <outputDir>';
+    BulkAnalyze.description = 'Analyze resources from bulk ndjson files in a directory';
     return BulkAnalyze;
 }());
 exports.BulkAnalyze = BulkAnalyze;

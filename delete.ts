@@ -1,6 +1,7 @@
 import {Export} from "./export";
 import * as request from 'request';
 import {IBundle} from "./fhir/bundle";
+import {Arguments, Argv} from "yargs";
 
 export interface DeleteOptions {
     fhir_base: string;
@@ -12,13 +13,41 @@ export interface DeleteOptions {
 export class Delete {
     private options: DeleteOptions;
 
+    public static command = 'delete <fhir_base>';
+    public static description = 'Delete resources from a FHIR server';
+
+    public static args(yargs: Argv): Argv {
+        return yargs
+            .positional('fhir_base', {
+                type: 'string',
+                describe: 'The base url of the FHIR server'
+            })
+            .option('page_size', {
+                alias: 's',
+                type: 'number',
+                describe: 'The size of results to return per page',
+                default: 50
+            })
+            .option('expunge', {
+                alias: 'e',
+                boolean: true,
+                description: 'Indicates if $expunge should be executed on the FHIR server after deleting resources'
+            });
+    }
+
+    public static handler(args: Arguments) {
+        const deleter = new Delete(<DeleteOptions><any>args);
+        deleter.execute()
+            .then(() => process.exit(0));
+    }
+
     constructor(options: DeleteOptions) {
         this.options = options;
     }
 
     private async request(options: any) {
         return new Promise((resolve, reject) => {
-            request(options, async (err, response, body) => {
+            request(options, async (err: any, response: any, body: unknown) => {
                 if (err) {
                     return reject(err);
                 }

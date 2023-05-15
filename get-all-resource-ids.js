@@ -54,7 +54,7 @@ var GetAllResourceIds = (function () {
         return yargs
             .positional('fhir_base', {
             type: 'string',
-            describe: 'The base url of the fhir server'
+            describe: 'The base url of the spec server'
         })
             .positional('resource_type', {
             type: 'string',

@@ -1,7 +1,7 @@
 import * as request from 'request';
 import * as fs from 'fs';
-import {IBundle} from "./fhir/bundle";
-import {IList} from "./fhir/list";
+import {IBundle} from "./spec/bundle";
+import {IList} from "./spec/list";
 import {Arguments, Argv} from "yargs";
 import {CompareOptions} from "./compare";
 
@@ -13,7 +13,7 @@ export class GetAllResourceIdsOptions {
 }
 
 export class GetAllResourceIds {
-    private options: GetAllResourceIdsOptions;
+    private readonly options: GetAllResourceIdsOptions;
 
     public static command = 'get-all-resource-ids <fhir_base> <resource_type>';
     public static description = 'Gets all resource ids for the specified resource types';
@@ -22,7 +22,7 @@ export class GetAllResourceIds {
         return yargs
             .positional('fhir_base', {
                 type: 'string',
-                describe: 'The base url of the fhir server'
+                describe: 'The base url of the spec server'
             })
             .positional('resource_type', {
                 type: 'string',

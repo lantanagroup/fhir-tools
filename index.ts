@@ -10,6 +10,8 @@ import {BulkImport} from "./bulk-import";
 import {BulkAnalyze} from "./bulk-analyze";
 import {GetAllResourceIds} from "./get-all-resource-ids";
 import {CreateBundle} from "./create-bundle";
+import {JsonToXml} from "./json-to-xml";
+import {XmlToJson} from "./xml-to-json";
 
 yargs
     .command(CreateBundle.command, CreateBundle.description, CreateBundle.args, CreateBundle.handler)
@@ -22,6 +24,8 @@ yargs
     .command(Compare.command, Compare.description, Compare.args, Compare.handler)
     .command(Export.command, Export.description, Export.args, Export.handler)
     .command(GetAllResourceIds.command, GetAllResourceIds.description, GetAllResourceIds.args, GetAllResourceIds.handler)
+    .command(JsonToXml.command, JsonToXml.description, JsonToXml.args, JsonToXml.handler)
+    .command(XmlToJson.command, XmlToJson.description, XmlToJson.args, XmlToJson.handler)
     .help()
     .showHelpOnFail(true)
     .demandCommand()

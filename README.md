@@ -1,15 +1,17 @@
 # fhir-backup
 
+A command line tool for performing common tasks on FHIR® resources.
+
 ## Installation
 
 ```bash
 # Install globally
-npm install fhir-tools -g
+npm install spec-tools -g
 ```
 ```bash
 # Clone and install
 git clone https://github.com/lantanagroup/fhir-tools
-cd fhir-tools
+cd spec-tools
 npm install 
 ```
 
@@ -17,7 +19,7 @@ npm install
 
 ```bash
 # If installed globally
-fhir-tools <command> <parameters> --options
+spec-tools <command> <parameters> --options
 ```
 ```bash
 # If running from cloned repo
@@ -40,8 +42,8 @@ node index.js <command> <parameters> --options
 
 ```bash
 # If installed globally:
-fhir-tools --help
-fhir-tools <command> --help
+spec-tools --help
+spec-tools <command> --help
 ```
 ```bash
 # If running from cloned repo

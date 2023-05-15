@@ -42,16 +42,26 @@ var request = require("request");
 var tar = require("tar");
 var zlib_1 = require("zlib");
 var streamifier = require("streamifier");
+var fhir_1 = require("fhir/fhir");
 var CreateBundle = (function () {
     function CreateBundle(options) {
         this.resources = [];
+        this.fhir = new fhir_1.Fhir();
         this.options = options;
     }
     CreateBundle.args = function (args) {
         return args
-            .positional('file_path', {
+            .positional('output', {
+            description: 'The full path of the bundle that should be created as either JSON or XML'
+        })
+            .option('exclude', {
+            description: 'Expression to be used to exclude files from the bundle',
+            array: true
+        })
+            .option('path', {
             type: 'string',
-            describe: 'The path to the JSON Bundle file'
+            description: 'The path to the JSON Bundle file',
+            array: true
         });
     };
     CreateBundle.handler = function (args) {
@@ -59,13 +69,42 @@ var CreateBundle = (function () {
             .then(function () { return process.exit(0); });
     };
     CreateBundle.prototype.getResourcesFromDirectory = function (directory) {
-        var _a;
-        var files = fs.readdirSync(directory);
-        var resources = files.map(function (fileName) {
+        var _this = this;
+        fs.readdirSync(directory)
+            .filter(function (fileName) {
+            if (!fileName.toLowerCase().endsWith('.json') && !fileName.toLowerCase().endsWith('.xml')) {
+                return false;
+            }
+            if (_this.options.exclude) {
+                var shouldExclude = !!_this.options.exclude.find(function (exclude) {
+                    var regex = new RegExp(exclude);
+                    return regex.test(fileName);
+                });
+                if (shouldExclude) {
+                    return false;
+                }
+            }
+            return true;
+        })
+            .forEach(function (fileName) {
             var fileContent = fs.readFileSync(directory + '\\' + fileName).toString();
-            return JSON.parse(fileContent);
+            var resource;
+            try {
+                if (fileName.toLowerCase().endsWith('.json')) {
+                    resource = JSON.parse(fileContent);
+                }
+                else if (fileName.toLowerCase().endsWith('.xml')) {
+                    resource = _this.fhir.xmlToObj(fileContent);
+                }
+            }
+            catch (ex) {
+                console.error("Error parsing ".concat(fileName, ": ").concat(ex.message || ex));
+                return;
+            }
+            if (resource && resource.resourceType) {
+                _this.resources.push(resource);
+            }
         });
-        (_a = this.resources).push.apply(_a, resources);
     };
     CreateBundle.prototype.getResourcesFromZip = function (buffer) {
         return __awaiter(this, void 0, void 0, function () {
@@ -190,7 +229,7 @@ var CreateBundle = (function () {
     };
     CreateBundle.prototype.execute = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var bundle;
+            var bundle, xml;
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
@@ -217,7 +256,16 @@ var CreateBundle = (function () {
                             }
                         });
                         console.log("Putting ".concat(bundle.entry.length, " resources into a Bundle"));
-                        fs.writeFileSync(this.options.output, JSON.stringify(bundle));
+                        if (this.options.output.toLowerCase().endsWith('.json')) {
+                            fs.writeFileSync(this.options.output, JSON.stringify(bundle));
+                        }
+                        else if (this.options.output.toLowerCase().endsWith('.xml')) {
+                            xml = this.fhir.objToXml(bundle);
+                            fs.writeFileSync(this.options.output, xml);
+                        }
+                        else {
+                            console.error("Can't determine which format to convert the bundle to (XML or JSON) based on the output path: ".concat(this.options.output));
+                        }
                         console.log("Saved bundle to ".concat(this.options.output));
                         return [2];
                 }

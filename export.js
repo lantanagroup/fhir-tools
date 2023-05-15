@@ -74,7 +74,7 @@ var Export = (function () {
         return yargs
             .positional('fhir_base', {
             type: 'string',
-            describe: 'The base url of the fhir server'
+            describe: 'The base url of the spec server'
         })
             .positional('out_file', {
             type: 'string',
@@ -226,7 +226,7 @@ var Export = (function () {
                                 if (err) {
                                     return [2, reject(err)];
                                 }
-                                if (response.headers && response.headers['content-type'] && !response.headers['content-type'].startsWith('application/json') && !response.headers['content-type'].startsWith('application/fhir+json')) {
+                                if (response.headers && response.headers['content-type'] && !response.headers['content-type'].startsWith('application/json') && !response.headers['content-type'].startsWith('application/spec+json')) {
                                     console.error('Response from FHIR server is not JSON!');
                                     return [2, reject('Response from FHIR server is not JSON!')];
                                 }

@@ -3,7 +3,7 @@ import {CoreOptions} from 'request';
 import * as urljoin from 'url-join';
 import * as fs from 'fs';
 import * as semver from 'semver';
-import {IBundle} from "./fhir/bundle";
+import {IBundle} from "./spec/bundle";
 import {getFhirInstance} from "./helper";
 import {Auth} from "./auth";
 import {stringify} from 'JSONStream';
@@ -39,7 +39,7 @@ export class Export {
         return yargs
             .positional('fhir_base', {
                 type: 'string',
-                describe: 'The base url of the fhir server'
+                describe: 'The base url of the spec server'
             })
             .positional('out_file', {
                 type: 'string',
@@ -194,7 +194,7 @@ export class Export {
                     return reject(err);
                 }
 
-                if (response.headers && response.headers['content-type'] && !response.headers['content-type'].startsWith('application/json') && !response.headers['content-type'].startsWith('application/fhir+json')) {
+                if (response.headers && response.headers['content-type'] && !response.headers['content-type'].startsWith('application/json') && !response.headers['content-type'].startsWith('application/spec+json')) {
                     console.error('Response from FHIR server is not JSON!');
                     return reject('Response from FHIR server is not JSON!');
                 }

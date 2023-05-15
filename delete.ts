@@ -1,6 +1,6 @@
 import {Export} from "./export";
 import * as request from 'request';
-import {IBundle} from "./fhir/bundle";
+import {IBundle} from "./spec/bundle";
 import {Arguments, Argv} from "yargs";
 
 export interface DeleteOptions {

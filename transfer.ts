@@ -1,6 +1,6 @@
 import * as request from 'request';
 import {Export} from "./export";
-import {IBundle} from "./fhir/bundle";
+import {IBundle} from "./spec/bundle";
 import * as path from "path";
 import * as fs from "fs";
 import {getFhirInstance} from "./helper";

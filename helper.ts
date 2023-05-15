@@ -9,10 +9,10 @@ export function getFhirInstance(version: 'dstu3'|'r4' = 'r4'): Fhir {
     if (version === 'dstu3') {
         const parser = new ParseConformance();
 
-        const codeSystem3166 = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/codesystem-iso3166.json')).toString());
-        const profilesResources = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/profiles-resources.json')).toString());
-        const profilesTypes = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/profiles-types.json')).toString());
-        const valueSets = JSON.parse(fs.readFileSync(path.join(__dirname, 'fhir/stu3/valuesets.json')).toString());
+        const codeSystem3166 = JSON.parse(fs.readFileSync(path.join(__dirname, 'spec/stu3/codesystem-iso3166.json')).toString());
+        const profilesResources = JSON.parse(fs.readFileSync(path.join(__dirname, 'spec/stu3/profiles-resources.json')).toString());
+        const profilesTypes = JSON.parse(fs.readFileSync(path.join(__dirname, 'spec/stu3/profiles-types.json')).toString());
+        const valueSets = JSON.parse(fs.readFileSync(path.join(__dirname, 'spec/stu3/valuesets.json')).toString());
         parser.loadCodeSystem(codeSystem3166);
         parser.parseBundle(profilesResources);
         parser.parseBundle(profilesTypes);

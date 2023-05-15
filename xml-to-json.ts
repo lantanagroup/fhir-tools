@@ -15,7 +15,7 @@ export class XmlToJson {
     private prompt = Prompt({ sigint: true });
 
     public static command = 'xml-to-json';
-    public static description = 'Converts a XML file (or all JSON files in a directory) to JSON';
+    public static description = 'Converts a XML file (or all XML files in a directory) to JSON';
 
     public static args(args: Argv): Argv {
         return args

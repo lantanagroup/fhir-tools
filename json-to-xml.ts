@@ -16,7 +16,7 @@ export class JsonToXml {
     private prompt = Prompt({ sigint: true });
 
     public static command = 'json-to-xml';
-    public static description = 'Converts a JSON file (or all JSON files in a directory) to XML';
+    public static description = 'Converts a JSON file (or all JSON files in a directory) to XML. Stores the XML file as the same file name as the JSON file, but with an XML extension, instead.';
 
     public static args(args: Argv): Argv {
         return args

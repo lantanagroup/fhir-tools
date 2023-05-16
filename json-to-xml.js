@@ -65,7 +65,7 @@ var JsonToXml = (function () {
         });
     };
     JsonToXml.command = 'json-to-xml';
-    JsonToXml.description = 'Converts a JSON file (or all JSON files in a directory) to XML';
+    JsonToXml.description = 'Converts a JSON file (or all JSON files in a directory) to XML. Stores the XML file as the same file name as the JSON file, but with an XML extension, instead.';
     return JsonToXml;
 }());
 exports.JsonToXml = JsonToXml;

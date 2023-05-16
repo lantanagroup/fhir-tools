@@ -65,7 +65,7 @@ var XmlToJson = (function () {
         });
     };
     XmlToJson.command = 'xml-to-json';
-    XmlToJson.description = 'Converts a XML file (or all XML files in a directory) to JSON';
+    XmlToJson.description = 'Converts a XML file (or all XML files in a directory) to JSON. Stores the JSON file as the same file name as the XML file, but with a JSON extension, instead.';
     return XmlToJson;
 }());
 exports.XmlToJson = XmlToJson;

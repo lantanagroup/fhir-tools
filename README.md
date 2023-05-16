@@ -37,8 +37,8 @@ node index.js <command> <parameters> --options
 | compare | Compare the resources from one FHIR server to another                                                                                                            |
 | export | Export data from a FHIR server                                                                                                                                   | 
 | get-all-resource-ids | Gets all resource ids for the specified resource types from a FHIR server                                                                                        |
-| xml-to-json | Converts a XML file (or all XML files in a directory) to JSON. Stores the XML file as the same file name as the JSON file, but with an XML extension, instead.   |
-| json-to-xml | Converts a JSON file (or all JSON files in a directory) to XML. Stores the JSON file as the same file name as the XML file, but with an JSON extension, instead. |                                                                        |
+| xml-to-json | Converts a XML file (or all XML files in a directory) to JSON. Stores the JSON file as the same file name as the XML file, but with an JSON extension, instead.  |
+| json-to-xml | Converts a JSON file (or all JSON files in a directory) to XML. Stores the JSON file as the same file name as the XML file, but with an JSON extension, instead. |
 
 ## Help
 

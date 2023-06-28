@@ -39,6 +39,8 @@ node index.js <command> <parameters> --options
 | get-all-resource-ids | Gets all resource ids for the specified resource types from a FHIR server                                                                                        |
 | xml-to-json | Converts a XML file (or all XML files in a directory) to JSON. Stores the JSON file as the same file name as the XML file, but with an JSON extension, instead.  |
 | json-to-xml | Converts a JSON file (or all JSON files in a directory) to XML. Stores the JSON file as the same file name as the XML file, but with an JSON extension, instead. |
+| create-code-system | Create a code system from a source file, such as RXNorm or SNOMED-CT. This command is VERY basic and does not currently account for many of the complexities of SNOMED and RXNORM code systems. This is only intended as a starting point and should not be used in production systems that require reliability. |
+| transaction | Execute a bundle as a transaction on the destination fhir server |
 
 ## Help
 

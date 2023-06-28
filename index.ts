@@ -12,6 +12,8 @@ import {GetAllResourceIds} from "./get-all-resource-ids";
 import {CreateBundle} from "./create-bundle";
 import {JsonToXml} from "./json-to-xml";
 import {XmlToJson} from "./xml-to-json";
+import {CreateCodeSystem, CreateCodeSystemOptions} from "./create-code-system";
+import {Transaction} from "./transaction";
 
 yargs
     .command(CreateBundle.command, CreateBundle.description, CreateBundle.args, CreateBundle.handler)
@@ -26,6 +28,8 @@ yargs
     .command(GetAllResourceIds.command, GetAllResourceIds.description, GetAllResourceIds.args, GetAllResourceIds.handler)
     .command(JsonToXml.command, JsonToXml.description, JsonToXml.args, JsonToXml.handler)
     .command(XmlToJson.command, XmlToJson.description, XmlToJson.args, XmlToJson.handler)
+    .command(CreateCodeSystem.command, CreateCodeSystem.description, CreateCodeSystem.args, CreateCodeSystem.handler)
+    .command(Transaction.command, Transaction.description, Transaction.args, Transaction.handler)
     .help()
     .showHelpOnFail(true)
     .demandCommand()

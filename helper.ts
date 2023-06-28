@@ -3,6 +3,12 @@ import {ParseConformance} from "fhir/parseConformance";
 import * as fs from "fs";
 import * as path from "path";
 
+export function log(message: string, error = false) {
+    const msg = (new Date().toISOString()) + ' - ' + message;
+    const func = error ? console.error : console.log;
+    func(msg);
+}
+
 export function getFhirInstance(version: 'dstu3'|'r4' = 'r4'): Fhir {
     let fhir: Fhir;
 

@@ -6,6 +6,7 @@ import * as fs from "fs";
 import {Fhir} from "fhir/fhir";
 import * as request from "request";
 import {CoreOptions} from "request";
+import {log} from "./helper";
 
 interface TransactionOptions {
     fhirServer: string;
@@ -65,7 +66,7 @@ export class Transaction {
         }
 
         if (!bundle.entry || bundle.entry.length === 0) {
-            console.log(`Skipping ${path} because it does not have any entries`);
+            log(`Skipping ${path} because it does not have any entries`);
             return;
         }
 
@@ -93,7 +94,7 @@ export class Transaction {
                     .forEach(f => this.addBundle(path.join(b, f)));
             } else {
                 if (!b.toLowerCase().endsWith('.xml') && !b.toLowerCase().endsWith('.json')) {
-                    console.log(`Skipping ${b} because it is not an XML or JSON file`);
+                    log(`Skipping ${b} because it is not an XML or JSON file`);
                     return;
                 }
 
@@ -129,29 +130,31 @@ export class Transaction {
         this.getBundles();
 
         for (let bundleInfo of this.bundles) {
-            console.log(`Executing batch/transaction for ${bundleInfo.path}`);
+            log(`Executing batch/transaction for ${bundleInfo.path}`);
             try {
                 const results: any = await this.executeBundle(bundleInfo.bundle);
-                console.log(`Done executing, results are:`);
-                const goodEntries = (results.entry || []).filter(e => e.response && e.response.status && e.response.status.startsWith('2'));
-                const badEntries = (results.entry || []).filter(e => !e.response || !e.response.status && !e.response.status.startsWith('2'));
+                const goodEntries = (results.entry || []).filter((e: any) => e.response && e.response.status && e.response.status.startsWith('2'));
+                const badEntries = (results.entry || []).filter((e: any) => !e.response || !e.response.status && !e.response.status.startsWith('2'));
 
-                console.log(`* ${goodEntries.length} entries with positive response`);
-                console.log(`* ${badEntries.length} entries with bad response`);
+                log(`Done executing ${bundleInfo.path}. ${goodEntries.length} positive and ${badEntries.length} bad responses`);
 
-                console.log(`Bad responses:`);
-                badEntries.forEach(e => {
-                    if (!e.response) {
-                        console.log('* No response');
-                    } else if (!e.response.status) {
-                        console.log('* Response without status');
-                    } else if (e.response.status) {
-                        console.log(`* Response with status "${e.response.status}"`);
-                    }
-                });
+                if (badEntries.length > 0) {
+                    log(`Bad responses:`);
+                    badEntries.forEach((e: any) => {
+                        if (!e.response) {
+                            log('* No response');
+                        } else if (!e.response.status) {
+                            log('* Response without status');
+                        } else if (e.response.status) {
+                            log(`* Response with status "${e.response.status}"`);
+                        }
+                    });
+                }
             } catch (ex) {
-                console.error(`Error executing batch/transaction ${bundleInfo.path} due to: ${ex.message || ex}`);
+                log(`Error executing batch/transaction ${bundleInfo.path} due to: ${ex.message || ex}`, true);
             }
         }
+
+        log('Done');
     }
 }

@@ -42,6 +42,7 @@ var path = require("path");
 var fs = require("fs");
 var fhir_1 = require("fhir/fhir");
 var request = require("request");
+var helper_1 = require("./helper");
 var Transaction = (function () {
     function Transaction(options) {
         this.fhir = new fhir_1.Fhir();
@@ -84,7 +85,7 @@ var Transaction = (function () {
             bundle.type = 'batch';
         }
         if (!bundle.entry || bundle.entry.length === 0) {
-            console.log("Skipping ".concat(path, " because it does not have any entries"));
+            (0, helper_1.log)("Skipping ".concat(path, " because it does not have any entries"));
             return;
         }
         bundle.entry = bundle.entry.filter(function (entry) { return entry.request || entry.resource; });
@@ -111,7 +112,7 @@ var Transaction = (function () {
             }
             else {
                 if (!b.toLowerCase().endsWith('.xml') && !b.toLowerCase().endsWith('.json')) {
-                    console.log("Skipping ".concat(b, " because it is not an XML or JSON file"));
+                    (0, helper_1.log)("Skipping ".concat(b, " because it is not an XML or JSON file"));
                     return;
                 }
                 _this.addBundle(b);
@@ -158,39 +159,41 @@ var Transaction = (function () {
                     case 2:
                         if (!(_i < _a.length)) return [3, 7];
                         bundleInfo = _a[_i];
-                        console.log("Executing batch/transaction for ".concat(bundleInfo.path));
+                        (0, helper_1.log)("Executing batch/transaction for ".concat(bundleInfo.path));
                         _b.label = 3;
                     case 3:
                         _b.trys.push([3, 5, , 6]);
                         return [4, this.executeBundle(bundleInfo.bundle)];
                     case 4:
                         results = _b.sent();
-                        console.log("Done executing, results are:");
                         goodEntries = (results.entry || []).filter(function (e) { return e.response && e.response.status && e.response.status.startsWith('2'); });
                         badEntries = (results.entry || []).filter(function (e) { return !e.response || !e.response.status && !e.response.status.startsWith('2'); });
-                        console.log("* ".concat(goodEntries.length, " entries with positive response"));
-                        console.log("* ".concat(badEntries.length, " entries with bad response"));
-                        console.log("Bad responses:");
-                        badEntries.forEach(function (e) {
-                            if (!e.response) {
-                                console.log('* No response');
-                            }
-                            else if (!e.response.status) {
-                                console.log('* Response without status');
-                            }
-                            else if (e.response.status) {
-                                console.log("* Response with status \"".concat(e.response.status, "\""));
-                            }
-                        });
+                        (0, helper_1.log)("Done executing ".concat(bundleInfo.path, ". ").concat(goodEntries.length, " positive and ").concat(badEntries.length, " bad responses"));
+                        if (badEntries.length > 0) {
+                            (0, helper_1.log)("Bad responses:");
+                            badEntries.forEach(function (e) {
+                                if (!e.response) {
+                                    (0, helper_1.log)('* No response');
+                                }
+                                else if (!e.response.status) {
+                                    (0, helper_1.log)('* Response without status');
+                                }
+                                else if (e.response.status) {
+                                    (0, helper_1.log)("* Response with status \"".concat(e.response.status, "\""));
+                                }
+                            });
+                        }
                         return [3, 6];
                     case 5:
                         ex_1 = _b.sent();
-                        console.error("Error executing batch/transaction ".concat(bundleInfo.path, " due to: ").concat(ex_1.message || ex_1));
+                        (0, helper_1.log)("Error executing batch/transaction ".concat(bundleInfo.path, " due to: ").concat(ex_1.message || ex_1), true);
                         return [3, 6];
                     case 6:
                         _i++;
                         return [3, 2];
-                    case 7: return [2];
+                    case 7:
+                        (0, helper_1.log)('Done');
+                        return [2];
                 }
             });
         });

@@ -1,10 +1,17 @@
 "use strict";
 exports.__esModule = true;
-exports.parseOperationOutcome = exports.getFhirInstance = void 0;
+exports.parseOperationOutcome = exports.getFhirInstance = exports.log = void 0;
 var fhir_1 = require("fhir/fhir");
 var parseConformance_1 = require("fhir/parseConformance");
 var fs = require("fs");
 var path = require("path");
+function log(message, error) {
+    if (error === void 0) { error = false; }
+    var msg = (new Date().toISOString()) + ' - ' + message;
+    var func = error ? console.error : console.log;
+    func(msg);
+}
+exports.log = log;
 function getFhirInstance(version) {
     if (version === void 0) { version = 'r4'; }
     var fhir;

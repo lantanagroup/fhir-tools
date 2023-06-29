@@ -114,8 +114,8 @@ export class Transaction {
 
         return new Promise((resolve, reject) => {
             request(this.options.fhirServer, options, (err, res, body) => {
-                if (err) {
-                    reject(err);
+                if (err || body.resourceType === 'OperationOutcome') {
+                    reject(err || body);
                 } else {
                     resolve(body);
                 }
@@ -123,6 +123,31 @@ export class Transaction {
         });
     }
 
+    private logBundleResponse(path: string, results: any) {
+        const goodEntries = (results.entry || []).filter((e: any) => e.response && e.response.status && e.response.status.startsWith('2'));
+        const badEntries = (results.entry || []).filter((e: any) => !e.response || !e.response.status && !e.response.status.startsWith('2'));
+
+        log(`Done executing ${path}. ${goodEntries.length} positive and ${badEntries.length} bad responses`);
+
+        if (badEntries.length > 0) {
+            log(`Bad responses:`);
+            badEntries.forEach((e: any) => {
+                if (!e.response) {
+                    log('* No response');
+                } else if (!e.response.status) {
+                    log('* Response without status');
+                } else if (e.response.status) {
+                    log(`* Response with status "${e.response.status}"`);
+                }
+            });
+        }
+    }
+
+    private logOperationOutcome(results: any) {
+        (results.issue || []).forEach((issue: any) => {
+            log(`${issue.severity || 'ISSUE'}: ${issue.diagnostics}`);
+        });
+    }
 
     public async execute() {
         this.auth = new Auth();
@@ -133,25 +158,13 @@ export class Transaction {
             log(`Executing batch/transaction for ${bundleInfo.path}`);
             try {
                 const results: any = await this.executeBundle(bundleInfo.bundle);
-                const goodEntries = (results.entry || []).filter((e: any) => e.response && e.response.status && e.response.status.startsWith('2'));
-                const badEntries = (results.entry || []).filter((e: any) => !e.response || !e.response.status && !e.response.status.startsWith('2'));
-
-                log(`Done executing ${bundleInfo.path}. ${goodEntries.length} positive and ${badEntries.length} bad responses`);
-
-                if (badEntries.length > 0) {
-                    log(`Bad responses:`);
-                    badEntries.forEach((e: any) => {
-                        if (!e.response) {
-                            log('* No response');
-                        } else if (!e.response.status) {
-                            log('* Response without status');
-                        } else if (e.response.status) {
-                            log(`* Response with status "${e.response.status}"`);
-                        }
-                    });
-                }
+                this.logBundleResponse(bundleInfo.path, results);
             } catch (ex) {
-                log(`Error executing batch/transaction ${bundleInfo.path} due to: ${ex.message || ex}`, true);
+                if (ex.resourceType === 'OperationOutcome') {
+                    this.logOperationOutcome(ex);
+                } else {
+                    log(`Error executing batch/transaction ${bundleInfo.path} due to: ${ex.message || ex}`, true);
+                }
             }
         }
 

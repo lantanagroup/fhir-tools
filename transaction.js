@@ -132,8 +132,8 @@ var Transaction = (function () {
                 this.auth.authenticateRequest(options);
                 return [2, new Promise(function (resolve, reject) {
                         request(_this.options.fhirServer, options, function (err, res, body) {
-                            if (err) {
-                                reject(err);
+                            if (err || body.resourceType === 'OperationOutcome') {
+                                reject(err || body);
                             }
                             else {
                                 resolve(body);
@@ -143,9 +143,33 @@ var Transaction = (function () {
             });
         });
     };
+    Transaction.prototype.logBundleResponse = function (path, results) {
+        var goodEntries = (results.entry || []).filter(function (e) { return e.response && e.response.status && e.response.status.startsWith('2'); });
+        var badEntries = (results.entry || []).filter(function (e) { return !e.response || !e.response.status && !e.response.status.startsWith('2'); });
+        (0, helper_1.log)("Done executing ".concat(path, ". ").concat(goodEntries.length, " positive and ").concat(badEntries.length, " bad responses"));
+        if (badEntries.length > 0) {
+            (0, helper_1.log)("Bad responses:");
+            badEntries.forEach(function (e) {
+                if (!e.response) {
+                    (0, helper_1.log)('* No response');
+                }
+                else if (!e.response.status) {
+                    (0, helper_1.log)('* Response without status');
+                }
+                else if (e.response.status) {
+                    (0, helper_1.log)("* Response with status \"".concat(e.response.status, "\""));
+                }
+            });
+        }
+    };
+    Transaction.prototype.logOperationOutcome = function (results) {
+        (results.issue || []).forEach(function (issue) {
+            (0, helper_1.log)("".concat(issue.severity || 'ISSUE', ": ").concat(issue.diagnostics));
+        });
+    };
     Transaction.prototype.execute = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var _i, _a, bundleInfo, results, goodEntries, badEntries, ex_1;
+            var _i, _a, bundleInfo, results, ex_1;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -166,27 +190,16 @@ var Transaction = (function () {
                         return [4, this.executeBundle(bundleInfo.bundle)];
                     case 4:
                         results = _b.sent();
-                        goodEntries = (results.entry || []).filter(function (e) { return e.response && e.response.status && e.response.status.startsWith('2'); });
-                        badEntries = (results.entry || []).filter(function (e) { return !e.response || !e.response.status && !e.response.status.startsWith('2'); });
-                        (0, helper_1.log)("Done executing ".concat(bundleInfo.path, ". ").concat(goodEntries.length, " positive and ").concat(badEntries.length, " bad responses"));
-                        if (badEntries.length > 0) {
-                            (0, helper_1.log)("Bad responses:");
-                            badEntries.forEach(function (e) {
-                                if (!e.response) {
-                                    (0, helper_1.log)('* No response');
-                                }
-                                else if (!e.response.status) {
-                                    (0, helper_1.log)('* Response without status');
-                                }
-                                else if (e.response.status) {
-                                    (0, helper_1.log)("* Response with status \"".concat(e.response.status, "\""));
-                                }
-                            });
-                        }
+                        this.logBundleResponse(bundleInfo.path, results);
                         return [3, 6];
                     case 5:
                         ex_1 = _b.sent();
-                        (0, helper_1.log)("Error executing batch/transaction ".concat(bundleInfo.path, " due to: ").concat(ex_1.message || ex_1), true);
+                        if (ex_1.resourceType === 'OperationOutcome') {
+                            this.logOperationOutcome(ex_1);
+                        }
+                        else {
+                            (0, helper_1.log)("Error executing batch/transaction ".concat(bundleInfo.path, " due to: ").concat(ex_1.message || ex_1), true);
+                        }
                         return [3, 6];
                     case 6:
                         _i++;

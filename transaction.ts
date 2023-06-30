@@ -106,7 +106,6 @@ export class Transaction {
 
     private async executeBundle(bundle: IBundle) {
         const options: CoreOptions = {
-            method: 'POST',
             body: bundle,
             json: true
         };
@@ -114,33 +113,49 @@ export class Transaction {
         this.auth.authenticateRequest(options);
 
         return new Promise((resolve, reject) => {
-            request(this.options.fhirServer, options, (err, res, body) => {
-                if (err || body.resourceType === 'OperationOutcome') {
-                    reject(err || body);
-                } else {
-                    resolve(body);
-                }
-            });
+            try {
+                request.post(this.options.fhirServer, options, (err, res, body) => {
+                    if (err || body.resourceType === 'OperationOutcome') {
+                        reject(err || body);
+                    } else {
+                        resolve(body);
+                    }
+                });
+            } catch (ex) {
+                reject(ex);
+            }
         });
+    }
+
+    private getResponseOutcome(outcome: any) {
+        if (!outcome || outcome.resourceType !== 'OperationOutcome' || !outcome.issue || !outcome.issue.length) {
+            return '';
+        }
+
+        return '\n' + (outcome.issue || []).map((issue: any) => {
+            return `** ${issue.severity}: ${issue.diagnostics}`;
+        }).join('\n');
     }
 
     private logBundleResponse(path: string, results: any) {
         const goodEntries = (results.entry || []).filter((e: any) => e.response && e.response.status && e.response.status.startsWith('2'));
-        const badEntries = (results.entry || []).filter((e: any) => !e.response || !e.response.status && !e.response.status.startsWith('2'));
+        const badEntries = (results.entry || []).filter((e: any) => !e.response || !e.response.status || !e.response.status.startsWith('2'));
 
         log(`Done executing ${path}. ${goodEntries.length} positive and ${badEntries.length} bad responses`);
 
         if (badEntries.length > 0) {
-            log(`Bad responses:`);
+            let badOutput = '\n';
             badEntries.forEach((e: any) => {
                 if (!e.response) {
-                    log('* No response');
+                    badOutput += '* No response\n';
                 } else if (!e.response.status) {
-                    log('* Response without status');
+                    badOutput += '* Response without status\n';
                 } else if (e.response.status) {
-                    log(`* Response with status "${e.response.status}"`);
+                    const outcome = this.getResponseOutcome(e.response.outcome);
+                    badOutput += `* Response with status "${e.response.status}"${outcome}\n`;
                 }
             });
+            log(badOutput);
         }
     }
 
@@ -180,6 +195,8 @@ export class Transaction {
                 });
             activeTransactions.push(activeTransaction);
         }
+
+        await Promise.all(activeTransactions);
 
         log('Done');
     }

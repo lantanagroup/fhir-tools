@@ -125,41 +125,56 @@ var Transaction = (function () {
             var _this = this;
             return __generator(this, function (_a) {
                 options = {
-                    method: 'POST',
                     body: bundle,
                     json: true
                 };
                 this.auth.authenticateRequest(options);
                 return [2, new Promise(function (resolve, reject) {
-                        request(_this.options.fhirServer, options, function (err, res, body) {
-                            if (err || body.resourceType === 'OperationOutcome') {
-                                reject(err || body);
-                            }
-                            else {
-                                resolve(body);
-                            }
-                        });
+                        try {
+                            request.post(_this.options.fhirServer, options, function (err, res, body) {
+                                if (err || body.resourceType === 'OperationOutcome') {
+                                    reject(err || body);
+                                }
+                                else {
+                                    resolve(body);
+                                }
+                            });
+                        }
+                        catch (ex) {
+                            reject(ex);
+                        }
                     })];
             });
         });
     };
+    Transaction.prototype.getResponseOutcome = function (outcome) {
+        if (!outcome || outcome.resourceType !== 'OperationOutcome' || !outcome.issue || !outcome.issue.length) {
+            return '';
+        }
+        return '\n' + (outcome.issue || []).map(function (issue) {
+            return "** ".concat(issue.severity, ": ").concat(issue.diagnostics);
+        }).join('\n');
+    };
     Transaction.prototype.logBundleResponse = function (path, results) {
+        var _this = this;
         var goodEntries = (results.entry || []).filter(function (e) { return e.response && e.response.status && e.response.status.startsWith('2'); });
-        var badEntries = (results.entry || []).filter(function (e) { return !e.response || !e.response.status && !e.response.status.startsWith('2'); });
+        var badEntries = (results.entry || []).filter(function (e) { return !e.response || !e.response.status || !e.response.status.startsWith('2'); });
         (0, helper_1.log)("Done executing ".concat(path, ". ").concat(goodEntries.length, " positive and ").concat(badEntries.length, " bad responses"));
         if (badEntries.length > 0) {
-            (0, helper_1.log)("Bad responses:");
+            var badOutput_1 = '\n';
             badEntries.forEach(function (e) {
                 if (!e.response) {
-                    (0, helper_1.log)('* No response');
+                    badOutput_1 += '* No response\n';
                 }
                 else if (!e.response.status) {
-                    (0, helper_1.log)('* Response without status');
+                    badOutput_1 += '* Response without status\n';
                 }
                 else if (e.response.status) {
-                    (0, helper_1.log)("* Response with status \"".concat(e.response.status, "\""));
+                    var outcome = _this.getResponseOutcome(e.response.outcome);
+                    badOutput_1 += "* Response with status \"".concat(e.response.status, "\"").concat(outcome, "\n");
                 }
             });
+            (0, helper_1.log)(badOutput_1);
         }
     };
     Transaction.prototype.logOperationOutcome = function (results) {
@@ -224,7 +239,9 @@ var Transaction = (function () {
                     case 4:
                         _i++;
                         return [3, 2];
-                    case 5:
+                    case 5: return [4, Promise.all(activeTransactions)];
+                    case 6:
+                        _b.sent();
                         (0, helper_1.log)('Done');
                         return [2];
                 }

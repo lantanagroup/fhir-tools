@@ -12,6 +12,7 @@ interface TransactionOptions {
     fhirServer: string;
     authConfig?: string;
     bundle: string[];
+    batchCount: number;
 }
 
 export class Transaction {
@@ -154,18 +155,30 @@ export class Transaction {
         await this.auth.prepare(this.options.authConfig);
         this.getBundles();
 
+        let activeTransactions: Promise<any>[] = [];
+
         for (let bundleInfo of this.bundles) {
-            log(`Executing batch/transaction for ${bundleInfo.path}`);
-            try {
-                const results: any = await this.executeBundle(bundleInfo.bundle);
-                this.logBundleResponse(bundleInfo.path, results);
-            } catch (ex) {
-                if (ex.resourceType === 'OperationOutcome') {
-                    this.logOperationOutcome(ex);
-                } else {
-                    log(`Error executing batch/transaction ${bundleInfo.path} due to: ${ex.message || ex}`, true);
-                }
+            if (activeTransactions.length >= (this.options.batchCount || 5)) {
+                await Promise.race(activeTransactions);
             }
+
+            log(`Executing batch/transaction for ${bundleInfo.path}`);
+            const activeTransaction = this.executeBundle(bundleInfo.bundle)
+                .then((results) => {
+                    this.logBundleResponse(bundleInfo.path, results);
+                    activeTransactions.splice(activeTransactions.indexOf(activeTransaction), 1);
+                })
+                .catch((ex) => {
+                    activeTransactions.splice(activeTransactions.indexOf(activeTransaction), 1);
+
+                    if (ex.resourceType === 'OperationOutcome') {
+                        log(`Response is OperationOutcome executing batch/transaction ${bundleInfo.path} due to`, true);
+                        this.logOperationOutcome(ex);
+                    } else {
+                        log(`Error executing batch/transaction ${bundleInfo.path} due to: ${ex.message || ex}`, true);
+                    }
+                });
+            activeTransactions.push(activeTransaction);
         }
 
         log('Done');

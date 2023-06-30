@@ -169,7 +169,8 @@ var Transaction = (function () {
     };
     Transaction.prototype.execute = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var _i, _a, bundleInfo, results, ex_1;
+            var activeTransactions, _loop_1, this_1, _i, _a, bundleInfo;
+            var _this = this;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -178,33 +179,52 @@ var Transaction = (function () {
                     case 1:
                         _b.sent();
                         this.getBundles();
+                        activeTransactions = [];
+                        _loop_1 = function (bundleInfo) {
+                            var activeTransaction;
+                            return __generator(this, function (_c) {
+                                switch (_c.label) {
+                                    case 0:
+                                        if (!(activeTransactions.length >= (this_1.options.batchCount || 5))) return [3, 2];
+                                        return [4, Promise.race(activeTransactions)];
+                                    case 1:
+                                        _c.sent();
+                                        _c.label = 2;
+                                    case 2:
+                                        (0, helper_1.log)("Executing batch/transaction for ".concat(bundleInfo.path));
+                                        activeTransaction = this_1.executeBundle(bundleInfo.bundle)
+                                            .then(function (results) {
+                                            _this.logBundleResponse(bundleInfo.path, results);
+                                            activeTransactions.splice(activeTransactions.indexOf(activeTransaction), 1);
+                                        })["catch"](function (ex) {
+                                            activeTransactions.splice(activeTransactions.indexOf(activeTransaction), 1);
+                                            if (ex.resourceType === 'OperationOutcome') {
+                                                (0, helper_1.log)("Response is OperationOutcome executing batch/transaction ".concat(bundleInfo.path, " due to"), true);
+                                                _this.logOperationOutcome(ex);
+                                            }
+                                            else {
+                                                (0, helper_1.log)("Error executing batch/transaction ".concat(bundleInfo.path, " due to: ").concat(ex.message || ex), true);
+                                            }
+                                        });
+                                        activeTransactions.push(activeTransaction);
+                                        return [2];
+                                }
+                            });
+                        };
+                        this_1 = this;
                         _i = 0, _a = this.bundles;
                         _b.label = 2;
                     case 2:
-                        if (!(_i < _a.length)) return [3, 7];
+                        if (!(_i < _a.length)) return [3, 5];
                         bundleInfo = _a[_i];
-                        (0, helper_1.log)("Executing batch/transaction for ".concat(bundleInfo.path));
-                        _b.label = 3;
+                        return [5, _loop_1(bundleInfo)];
                     case 3:
-                        _b.trys.push([3, 5, , 6]);
-                        return [4, this.executeBundle(bundleInfo.bundle)];
+                        _b.sent();
+                        _b.label = 4;
                     case 4:
-                        results = _b.sent();
-                        this.logBundleResponse(bundleInfo.path, results);
-                        return [3, 6];
-                    case 5:
-                        ex_1 = _b.sent();
-                        if (ex_1.resourceType === 'OperationOutcome') {
-                            this.logOperationOutcome(ex_1);
-                        }
-                        else {
-                            (0, helper_1.log)("Error executing batch/transaction ".concat(bundleInfo.path, " due to: ").concat(ex_1.message || ex_1), true);
-                        }
-                        return [3, 6];
-                    case 6:
                         _i++;
                         return [3, 2];
-                    case 7:
+                    case 5:
                         (0, helper_1.log)('Done');
                         return [2];
                 }

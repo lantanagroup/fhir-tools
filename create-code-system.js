@@ -1,5 +1,5 @@
 "use strict";
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateCodeSystem = exports.CreateCodeSystemOptions = void 0;
 var fs = require("fs");
 var CreateCodeSystemOptions = (function () {
@@ -9,7 +9,7 @@ var CreateCodeSystemOptions = (function () {
     return CreateCodeSystemOptions;
 }());
 exports.CreateCodeSystemOptions = CreateCodeSystemOptions;
-var CreateCodeSystem = (function () {
+var CreateCodeSystem = exports.CreateCodeSystem = (function () {
     function CreateCodeSystem(options) {
         this.options = options;
     }
@@ -91,5 +91,4 @@ var CreateCodeSystem = (function () {
     CreateCodeSystem.description = 'Create a code system from a source file, such as RXNorm or SNOMED-CT. This command is VERY basic and does not currently account for many of the complexities of SNOMED and RXNORM code systems. This is only intended as a starting point and should not be used in production systems that require reliability.';
     return CreateCodeSystem;
 }());
-exports.CreateCodeSystem = CreateCodeSystem;
 //# sourceMappingURL=create-code-system.js.map

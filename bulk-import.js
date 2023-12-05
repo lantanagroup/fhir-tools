@@ -14,7 +14,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
             if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
             if (y = 0, t) op = [op[0] & 2, t.value];
             switch (op[0]) {
@@ -35,12 +35,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.BulkImport = void 0;
 var fs = require("fs");
 var path = require("path");
 var transfer_1 = require("./transfer");
-var BulkImport = (function () {
+var BulkImport = exports.BulkImport = (function () {
     function BulkImport(options) {
         this.options = options;
     }
@@ -69,48 +69,39 @@ var BulkImport = (function () {
                         files = fs.readdirSync(this.options.directory)
                             .filter(function (f) { return f.toLowerCase().endsWith('.ndjson'); });
                         transfer = new transfer_1.Transfer({
-                            destination: this.options.destination
+                            destination: this.options.destination,
                         });
-                        transfer.exportedBundle = {
-                            resourceType: 'Bundle',
-                            type: 'batch',
-                            entry: []
-                        };
+                        transfer.exportedResources = [];
                         console.log('Reading resources from directory');
                         files.forEach(function (f) {
                             var _a;
                             var fileContent = fs.readFileSync(path.join(_this.options.directory, f)).toString();
                             var fileLines = fileContent.replace(/\r/g, '').split('\n').filter(function (fl) { return !!fl; });
                             var fileResources = fileLines.map(function (fl) { return JSON.parse(fl); });
-                            var fileEntries = fileResources.map(function (fr) {
-                                return {
-                                    resource: fr
-                                };
-                            });
-                            (_a = transfer.exportedBundle.entry).push.apply(_a, fileEntries);
+                            (_a = transfer.exportedResources).push.apply(_a, fileResources);
                         });
-                        transfer.exportedBundle.entry = transfer.exportedBundle.entry.filter(function (e) { return e.resource.resourceType === 'Patient'; });
-                        transfer.exportedBundle.entry
-                            .filter(function (e) { return !e.resource.status; })
+                        transfer.exportedResources = transfer.exportedResources.filter(function (e) { return e.resourceType === 'Patient'; });
+                        transfer.exportedResources
+                            .filter(function (e) { return !e.status; })
                             .forEach(function (e) {
-                            switch (e.resource.resourceType) {
+                            switch (e.resourceType) {
                                 case 'Encounter':
-                                    e.resource.status = 'finished';
+                                    e.status = 'finished';
                                     break;
                                 case 'Observation':
-                                    e.resource.status = 'final';
+                                    e.status = 'final';
                                     break;
                                 case 'MedicationRequest':
-                                    e.resource.status = 'completed';
+                                    e.status = 'completed';
                                     break;
                             }
                         });
-                        transfer.exportedBundle.entry
-                            .filter(function (e) { return e.resource.resourceType === 'Patient' && !e.resource.identifier; })
+                        transfer.exportedResources
+                            .filter(function (e) { return e.resourceType === 'Patient' && !e.identifier; })
                             .forEach(function (e) {
-                            e.resource.identifier = [{
+                            e.identifier = [{
                                     system: 'https://sanerproject.org',
-                                    value: e.resource.id
+                                    value: e.id
                                 }];
                         });
                         console.log('Done reading resources. Beginning transfer');
@@ -127,5 +118,4 @@ var BulkImport = (function () {
     BulkImport.description = 'Import resources from bulk ndjson files in a directory';
     return BulkImport;
 }());
-exports.BulkImport = BulkImport;
 //# sourceMappingURL=bulk-import.js.map

@@ -1,5 +1,5 @@
 "use strict";
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.parseOperationOutcome = exports.getFhirInstance = exports.log = void 0;
 var fhir_1 = require("fhir/fhir");
 var parseConformance_1 = require("fhir/parseConformance");

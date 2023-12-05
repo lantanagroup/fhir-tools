@@ -1,5 +1,5 @@
 "use strict";
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.XmlToJson = exports.XmlToJsonOptions = void 0;
 var fhir_1 = require("fhir/fhir");
 var fs = require("fs");
@@ -12,7 +12,7 @@ var XmlToJsonOptions = (function () {
     return XmlToJsonOptions;
 }());
 exports.XmlToJsonOptions = XmlToJsonOptions;
-var XmlToJson = (function () {
+var XmlToJson = exports.XmlToJson = (function () {
     function XmlToJson(options) {
         this.fhir = new fhir_1.Fhir();
         this.prompt = Prompt({ sigint: true });
@@ -28,7 +28,7 @@ var XmlToJson = (function () {
             .option('overwrite', {
             type: 'boolean',
             description: 'Always overwrite destination, and do not prompt if the output path for each JSON file already exists',
-            "default": false
+            default: false
         });
     };
     XmlToJson.handler = function (args) {
@@ -68,5 +68,4 @@ var XmlToJson = (function () {
     XmlToJson.description = 'Converts a XML file (or all XML files in a directory) to JSON. Stores the JSON file as the same file name as the XML file, but with a JSON extension, instead.';
     return XmlToJson;
 }());
-exports.XmlToJson = XmlToJson;
 //# sourceMappingURL=xml-to-json.js.map

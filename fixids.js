@@ -1,5 +1,5 @@
 "use strict";
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.FixIds = void 0;
 var fs = require("fs");
 var _ = require("underscore");
@@ -8,7 +8,7 @@ var IdModel = (function () {
     }
     return IdModel;
 }());
-var FixIds = (function () {
+var FixIds = exports.FixIds = (function () {
     function FixIds(bundle) {
         if (typeof bundle === 'string') {
             this.filePath = bundle;
@@ -102,5 +102,4 @@ var FixIds = (function () {
     FixIds.description = 'Fix number-only ids of resources in a bundle so they can be imported with HAPI';
     return FixIds;
 }());
-exports.FixIds = FixIds;
 //# sourceMappingURL=fixids.js.map

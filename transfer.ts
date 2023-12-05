@@ -31,7 +31,7 @@ export class Transfer {
         resource: any;
         response: any;
     }[] = [];
-    private exportedResources: any[];
+    public exportedResources: any[];
     private resources: { [key: string]: { info: ResourceInfo, versions: any[] } };
     private sortedResources: any[];
     private fhirVersion: 'dstu3'|'r4';

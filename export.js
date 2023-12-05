@@ -1,4 +1,19 @@
 "use strict";
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+    return function (d, b) {
+        if (typeof b !== "function" && b !== null)
+            throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -14,7 +29,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
             if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
             if (y = 0, t) op = [op[0] & 2, t.value];
             switch (op[0]) {
@@ -44,7 +59,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     }
     return to.concat(ar || Array.prototype.slice.call(from));
 };
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.Export = exports.ExportOptions = void 0;
 var request = require("request");
 var urljoin = require("url-join");
@@ -52,23 +67,28 @@ var fs = require("fs");
 var semver = require("semver");
 var helper_1 = require("./helper");
 var auth_1 = require("./auth");
-var JSONStream_1 = require("JSONStream");
+var jsonstream_1 = require("jsonstream");
+var base_command_1 = require("./base-command");
 var ExportOptions = (function () {
     function ExportOptions() {
         this.ig = false;
         this.history_queue = 10;
         this.xml = false;
         this.summary = false;
+        this.short_elements = false;
     }
     return ExportOptions;
 }());
 exports.ExportOptions = ExportOptions;
-var Export = (function () {
+var Export = exports.Export = (function (_super) {
+    __extends(Export, _super);
     function Export(options) {
-        this.maxHistoryQueue = 10;
-        this.resourceTypes = [];
-        this.bundles = {};
-        this.options = options;
+        var _this = _super.call(this) || this;
+        _this.maxHistoryQueue = 10;
+        _this.resourceTypes = [];
+        _this.bundles = {};
+        _this.options = options;
+        return _this;
     }
     Export.args = function (yargs) {
         return yargs
@@ -84,7 +104,7 @@ var Export = (function () {
             alias: 's',
             type: 'number',
             describe: 'The size of results to return per page',
-            "default": 50
+            default: 50
         })
             .option('history', {
             alias: 'h',
@@ -109,7 +129,7 @@ var Export = (function () {
         })
             .option('history_queue', {
             type: 'number',
-            "default": 10,
+            default: 10,
             description: 'The number of requests for history that can be made in parallel'
         })
             .option('xml', {
@@ -118,6 +138,10 @@ var Export = (function () {
         })
             .option('auth_config', {
             description: 'Path to the auth YML config file to use when authenticating requests to the FHIR server'
+        })
+            .option('short_elements', {
+            description: 'Indicates if the _elements parameter on the server should use "<resourceType>.<property>" notation, or simply "<property>" notation',
+            default: false
         });
     };
     Export.handler = function (args) {
@@ -208,42 +232,12 @@ var Export = (function () {
             });
         });
     };
-    Export.prototype.request = function (url) {
-        return __awaiter(this, void 0, void 0, function () {
-            var _this = this;
-            return __generator(this, function (_a) {
-                return [2, new Promise(function (resolve, reject) {
-                        var options = {
-                            json: true,
-                            headers: {
-                                'Cache-Control': 'no-cache',
-                                'Content-Type': 'application/json'
-                            }
-                        };
-                        _this.auth.authenticateRequest(options);
-                        request(url, options, function (err, response, body) { return __awaiter(_this, void 0, void 0, function () {
-                            return __generator(this, function (_a) {
-                                if (err) {
-                                    return [2, reject(err)];
-                                }
-                                if (response.headers && response.headers['content-type'] && !response.headers['content-type'].startsWith('application/json') && !response.headers['content-type'].startsWith('application/spec+json')) {
-                                    console.error('Response from FHIR server is not JSON!');
-                                    return [2, reject('Response from FHIR server is not JSON!')];
-                                }
-                                resolve(body);
-                                return [2];
-                            });
-                        }); });
-                    })];
-            });
-        });
-    };
     Export.getProtocol = function (url) {
         return url.substring(0, url.indexOf('://'));
     };
     Export.prototype.getBundle = function (nextUrl, resourceType) {
         return __awaiter(this, void 0, void 0, function () {
-            var options, body, nextLink;
+            var options, body, bundle, nextLink;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -251,19 +245,24 @@ var Export = (function () {
                             this.bundles[resourceType] = [];
                         }
                         console.log("Requesting ".concat(nextUrl));
-                        options = {};
+                        options = {
+                            method: 'GET',
+                            url: nextUrl
+                        };
                         this.auth.authenticateRequest(options);
-                        return [4, this.request(nextUrl, options)];
+                        return [4, this.doRequest(options)];
                     case 1:
                         body = _a.sent();
-                        if (body.entry && body.entry.length > 0) {
-                            console.log("Found ".concat(body.entry.length, " ").concat(resourceType, " entries in bundle (Bundle.total = ").concat(body.total, ")"));
-                            this.bundles[resourceType].push(body);
+                        this.handleResponseError(body);
+                        bundle = body;
+                        if (bundle.entry && bundle.entry.length > 0) {
+                            console.log("Found ".concat(bundle.entry.length, " ").concat(resourceType, " entries in bundle (Bundle.total = ").concat(bundle.total, ")"));
+                            this.bundles[resourceType].push(bundle);
                         }
                         else {
                             console.log("No entries found for ".concat(resourceType));
                         }
-                        nextLink = (body.link || []).find(function (link) { return link.relation === 'next'; });
+                        nextLink = (bundle.link || []).find(function (link) { return link.relation === 'next'; });
                         if (!(nextLink && nextLink.url)) return [3, 3];
                         if (Export.getProtocol(nextUrl) !== Export.getProtocol(nextLink.url)) {
                             nextLink.url = Export.getProtocol(nextUrl) + nextLink.url.substring(Export.getProtocol(nextLink.url).length);
@@ -290,7 +289,12 @@ var Export = (function () {
                         nextUrl = urljoin(this.options.fhir_base, resourceType);
                         nextUrl += '?_count=' + this.options.page_size.toString();
                         if (this.options.summary) {
-                            nextUrl += "&_elements=".concat(resourceType, ".id");
+                            if (this.options.short_elements) {
+                                nextUrl += "&_elements=id";
+                            }
+                            else {
+                                nextUrl += "&_elements=".concat(resourceType, ".id");
+                            }
                         }
                         console.log("----------------------------\r\nStarting retrieve for ".concat(resourceType));
                         return [4, this.getBundle(nextUrl, resourceType)];
@@ -449,7 +453,7 @@ var Export = (function () {
                                 if (fs.existsSync(this.options.out_file)) {
                                     fs.unlinkSync(this.options.out_file);
                                 }
-                                st_1 = (0, JSONStream_1.stringify)();
+                                st_1 = (0, jsonstream_1.stringify)();
                                 st_1.pipe(fs.createWriteStream(this.options.out_file, { encoding: 'utf8' }));
                                 this.exportBundle.entry.forEach(function (entry) { return st_1.write(entry.resource); });
                                 st_1.end();
@@ -546,6 +550,5 @@ var Export = (function () {
     Export.command = 'export <fhir_base> <out_file>';
     Export.description = 'Export data from a FHIR server. Options to specify types of resources to export, whether to include history, and more.';
     return Export;
-}());
-exports.Export = Export;
+}(base_command_1.BaseCommand));
 //# sourceMappingURL=export.js.map

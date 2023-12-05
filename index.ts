@@ -14,6 +14,7 @@ import {JsonToXml} from "./json-to-xml";
 import {XmlToJson} from "./xml-to-json";
 import {CreateCodeSystem, CreateCodeSystemOptions} from "./create-code-system";
 import {Transaction} from "./transaction";
+import {BundleCommand} from "./bundle-command";
 
 yargs
     .command(CreateBundle.command, CreateBundle.description, CreateBundle.args, CreateBundle.handler)
@@ -30,6 +31,7 @@ yargs
     .command(XmlToJson.command, XmlToJson.description, XmlToJson.args, XmlToJson.handler)
     .command(CreateCodeSystem.command, CreateCodeSystem.description, CreateCodeSystem.args, CreateCodeSystem.handler)
     .command(Transaction.command, Transaction.description, Transaction.args, Transaction.handler)
+    .command(BundleCommand.command, BundleCommand.description, BundleCommand.args, BundleCommand.handler)
     .help()
     .showHelpOnFail(true)
     .demandCommand()

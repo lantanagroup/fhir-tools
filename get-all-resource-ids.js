@@ -14,7 +14,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
             if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
             if (y = 0, t) op = [op[0] & 2, t.value];
             switch (op[0]) {
@@ -35,18 +35,19 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.GetAllResourceIds = exports.GetAllResourceIdsOptions = void 0;
 var request = require("request");
 var fs = require("fs");
 var GetAllResourceIdsOptions = (function () {
     function GetAllResourceIdsOptions() {
         this['as-list-resource'] = false;
+        this.countPerPage = 100;
     }
     return GetAllResourceIdsOptions;
 }());
 exports.GetAllResourceIdsOptions = GetAllResourceIdsOptions;
-var GetAllResourceIds = (function () {
+var GetAllResourceIds = exports.GetAllResourceIds = (function () {
     function GetAllResourceIds(options) {
         this.options = options;
     }
@@ -65,9 +66,16 @@ var GetAllResourceIds = (function () {
             describe: 'File path to output the ids to'
         })
             .option('as-list-resource', {
+            describe: 'Output as a JSON List resource',
             alias: 'l',
             type: 'boolean',
-            "default": false
+            default: false
+        })
+            .option('count-per-page', {
+            describe: 'The number of resources to request per page',
+            alias: 'c',
+            type: 'number',
+            default: 100
         });
     };
     GetAllResourceIds.handler = function (args) {
@@ -126,7 +134,7 @@ var GetAllResourceIds = (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        startingUrl = this.options.fhir_base + (this.options.fhir_base.endsWith('/') ? '' : '/') + this.options.resource_type + '?_elements=id&_count=100';
+                        startingUrl = this.options.fhir_base + (this.options.fhir_base.endsWith('/') ? '' : '/') + this.options.resource_type + '?_elements=id&_count=' + this.options.countPerPage;
                         return [4, this.getNext(startingUrl)];
                     case 1:
                         bundle = _a.sent();
@@ -171,5 +179,4 @@ var GetAllResourceIds = (function () {
     GetAllResourceIds.description = 'Gets all resource ids for the specified resource types';
     return GetAllResourceIds;
 }());
-exports.GetAllResourceIds = GetAllResourceIds;
 //# sourceMappingURL=get-all-resource-ids.js.map

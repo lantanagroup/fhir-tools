@@ -1,9 +1,9 @@
 "use strict";
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.BulkAnalyze = void 0;
 var fs = require("fs");
 var path = require("path");
-var BulkAnalyze = (function () {
+var BulkAnalyze = exports.BulkAnalyze = (function () {
     function BulkAnalyze(options) {
         this.options = options;
     }
@@ -61,8 +61,8 @@ var BulkAnalyze = (function () {
             .map(function (encounter) {
             return {
                 id: encounter.id,
-                classCode: encounter["class"].code,
-                classSystem: encounter["class"].system,
+                classCode: encounter.class.code,
+                classSystem: encounter.class.system,
                 typeCode: encounter.type[0].coding[0].code,
                 typeSystem: encounter.type[0].coding[0].system,
                 patient: encounter.subject && encounter.subject.reference ? encounter.subject.reference.replace(/Patient\//g, '') : null,
@@ -159,5 +159,4 @@ var BulkAnalyze = (function () {
     BulkAnalyze.description = 'Analyze resources from bulk ndjson files in a directory';
     return BulkAnalyze;
 }());
-exports.BulkAnalyze = BulkAnalyze;
 //# sourceMappingURL=bulk-analyze.js.map

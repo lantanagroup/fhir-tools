@@ -3,11 +3,12 @@ import {CoreOptions} from 'request';
 import * as urljoin from 'url-join';
 import * as fs from 'fs';
 import * as semver from 'semver';
-import {IBundle} from "./spec/bundle";
+import {IBundle, IOperationOutcome} from "./spec/bundle";
 import {getFhirInstance} from "./helper";
 import {Auth} from "./auth";
-import {stringify} from 'JSONStream';
+import {stringify} from 'jsonstream';
 import {Arguments, Argv} from "yargs";
+import {BaseCommand} from "./base-command";
 
 export class ExportOptions {
     public fhir_base: string;
@@ -21,9 +22,10 @@ export class ExportOptions {
     public xml? = false;
     public summary? = false;
     public auth_config?: string;
+    public short_elements? = false;
 }
 
-export class Export {
+export class Export extends BaseCommand {
     readonly options: ExportOptions;
     readonly maxHistoryQueue: number = 10
     private resourceTypes: string[] = [];
@@ -83,6 +85,10 @@ export class Export {
             })
             .option('auth_config', {
                 description: 'Path to the auth YML config file to use when authenticating requests to the FHIR server'
+            })
+            .option('short_elements', {
+                description: 'Indicates if the _elements parameter on the server should use "<resourceType>.<property>" notation, or simply "<property>" notation',
+                default: false
             });
     }
 
@@ -92,6 +98,7 @@ export class Export {
     }
 
     constructor(options: ExportOptions) {
+        super();
         this.options = options;
     }
 
@@ -178,32 +185,6 @@ export class Export {
         });
     }
 
-    private async request(url: string) {
-        return new Promise((resolve, reject) => {
-            const options = {
-                json: true,
-                headers: {
-                    'Cache-Control': 'no-cache',
-                    'Content-Type': 'application/json'
-                }
-            };
-
-            this.auth.authenticateRequest(options);
-            request(url, options, async (err, response, body) => {
-                if (err) {
-                    return reject(err);
-                }
-
-                if (response.headers && response.headers['content-type'] && !response.headers['content-type'].startsWith('application/json') && !response.headers['content-type'].startsWith('application/spec+json')) {
-                    console.error('Response from FHIR server is not JSON!');
-                    return reject('Response from FHIR server is not JSON!');
-                }
-
-                resolve(body);
-            });
-        });
-    }
-
     private static getProtocol(url: string) {
         return url.substring(0, url.indexOf('://'));
     }
@@ -215,18 +196,25 @@ export class Export {
 
         console.log(`Requesting ${nextUrl}`);
 
-        const options = {};
+        const options = {
+            method: 'GET',
+            url: nextUrl
+        };
         this.auth.authenticateRequest(options);
-        const body: any = await this.request(nextUrl, options);
+        const body: IBundle | IOperationOutcome = <any> await this.doRequest(options);
 
-        if (body.entry && body.entry.length > 0) {
-            console.log(`Found ${body.entry.length} ${resourceType} entries in bundle (Bundle.total = ${body.total})`);
-            this.bundles[resourceType].push(body);
+        this.handleResponseError(body);
+
+        const bundle = body as IBundle;
+
+        if (bundle.entry && bundle.entry.length > 0) {
+            console.log(`Found ${bundle.entry.length} ${resourceType} entries in bundle (Bundle.total = ${bundle.total})`);
+            this.bundles[resourceType].push(bundle);
         } else {
             console.log(`No entries found for ${resourceType}`);
         }
 
-        const nextLink = (body.link || []).find((link: any) => link.relation === 'next');
+        const nextLink = (bundle.link || []).find((link: any) => link.relation === 'next');
 
         if (nextLink && nextLink.url) {
             if (Export.getProtocol(nextUrl) !== Export.getProtocol(nextLink.url)) {
@@ -247,7 +235,11 @@ export class Export {
         nextUrl += '?_count=' + this.options.page_size.toString();
 
         if (this.options.summary) {
-            nextUrl += `&_elements=${resourceType}.id`;
+            if (this.options.short_elements) {
+                nextUrl += `&_elements=id`;
+            } else {
+                nextUrl += `&_elements=${resourceType}.id`;
+            }
         }
 
         console.log(`----------------------------\r\nStarting retrieve for ${resourceType}`);

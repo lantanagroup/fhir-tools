@@ -8,7 +8,7 @@ export interface IBundleEntry {
 }
 
 export interface IBundle {
-    resourceType: string;
+    resourceType: 'Bundle';
     total?: number;
     type: string;
     entry?: IBundleEntry[];
@@ -16,4 +16,12 @@ export interface IBundle {
         relation: string;
         url: string;
     }[];
+}
+
+export interface IOperationOutcome {
+    resourceType: 'OperationOutcome';
+    issue?: [{
+        severity?: 'error'|'warning'|'information';
+        diagnostics?: string;
+    }]
 }

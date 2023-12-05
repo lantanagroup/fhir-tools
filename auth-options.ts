@@ -1,5 +1,6 @@
 export class AuthOptions {
-    type: 'basic'|'oauth';
+    type: 'basic'|'oauth'|'bearerToken';
+    public token: string;
     public basic: {
         username: string;
         password: string;

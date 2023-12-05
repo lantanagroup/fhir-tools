@@ -14,7 +14,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
             if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
             if (y = 0, t) op = [op[0] & 2, t.value];
             switch (op[0]) {
@@ -35,7 +35,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.Auth = void 0;
 var request = require("request");
 var fs = require("fs");
@@ -45,41 +45,52 @@ var Auth = (function () {
     }
     Auth.prototype.prepare = function (optionsFile) {
         return __awaiter(this, void 0, void 0, function () {
-            var optionsContent, options, _a, token, _b, token;
+            var options, optionsContent, _a, token, _b, token;
             return __generator(this, function (_c) {
                 switch (_c.label) {
                     case 0:
                         if (!optionsFile) {
                             return [2];
                         }
-                        optionsContent = fs.readFileSync(optionsFile).toString();
-                        options = (0, yaml_1.parse)(optionsContent);
+                        try {
+                            options = JSON.parse(optionsFile);
+                        }
+                        catch (_d) {
+                            optionsContent = fs.readFileSync(optionsFile).toString();
+                            options = (0, yaml_1.parse)(optionsContent);
+                        }
                         _a = options.type;
                         switch (_a) {
-                            case 'basic': return [3, 1];
-                            case 'oauth': return [3, 2];
+                            case 'bearerToken': return [3, 1];
+                            case 'basic': return [3, 2];
+                            case 'oauth': return [3, 3];
                         }
-                        return [3, 6];
+                        return [3, 7];
                     case 1:
+                        if (options.token) {
+                            this.authHeader = "Bearer ".concat(options.token);
+                        }
+                        return [2];
+                    case 2:
                         if (options.basic) {
                             token = btoa(options.basic.username + ':' + options.basic.password);
                             this.authHeader = "Basic ".concat(token);
                         }
                         return [2];
-                    case 2:
-                        if (!options.oauth) return [3, 5];
+                    case 3:
+                        if (!options.oauth) return [3, 6];
                         _b = options.oauth.grantType;
                         switch (_b) {
-                            case 'client_credential': return [3, 3];
+                            case 'client_credential': return [3, 4];
                         }
-                        return [3, 5];
-                    case 3: return [4, this.getClientCredential(options.oauth.tokenUrl, options.oauth.clientId, options.oauth.secret, options.oauth.resource)];
-                    case 4:
+                        return [3, 6];
+                    case 4: return [4, this.getClientCredential(options.oauth.tokenUrl, options.oauth.clientId, options.oauth.secret, options.oauth.resource)];
+                    case 5:
                         token = _c.sent();
                         this.authHeader = "Bearer ".concat(token);
                         return [2];
-                    case 5: return [2];
                     case 6: return [2];
+                    case 7: return [2];
                 }
             });
         });

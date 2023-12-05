@@ -41,11 +41,7 @@ export class BulkImport {
         const transfer = new Transfer({
             destination: this.options.destination,
         });
-        transfer.exportedBundle = {
-            resourceType: 'Bundle',
-            type: 'batch',
-            entry: []
-        };
+        transfer.exportedResources = [];
 
         console.log('Reading resources from directory');
 
@@ -53,12 +49,7 @@ export class BulkImport {
             const fileContent = fs.readFileSync(path.join(this.options.directory, f)).toString();
             const fileLines = fileContent.replace(/\r/g, '').split('\n').filter(fl => !!fl);
             const fileResources = fileLines.map(fl => JSON.parse(fl));
-            const fileEntries = fileResources.map(fr => {
-                return {
-                    resource: fr
-                };
-            });
-            transfer.exportedBundle.entry.push(...fileEntries);
+            transfer.exportedResources.push(...fileResources);
         });
 
         /*
@@ -97,32 +88,32 @@ export class BulkImport {
             });
          */
 
-        transfer.exportedBundle.entry = transfer.exportedBundle.entry.filter((e: { resource: { resourceType: string; }; }) => e.resource.resourceType === 'Patient');
+        transfer.exportedResources = transfer.exportedResources.filter((e: { resourceType: string; }) => e.resourceType === 'Patient');
 
         /* Ensure a status is appropriately set for resources */
-        transfer.exportedBundle.entry
-            .filter((e: { resource: { status: any; }; }) => !e.resource.status)
-            .forEach((e: { resource: { resourceType: any; status: string; }; }) => {
-                switch (e.resource.resourceType) {
+        transfer.exportedResources
+            .filter((e: { status: any; }) => !e.status)
+            .forEach((e: { resourceType: any; status: string; }) => {
+                switch (e.resourceType) {
                     case 'Encounter':
-                        e.resource.status = 'finished';
+                        e.status = 'finished';
                         break;
                     case 'Observation':
-                        e.resource.status = 'final';
+                        e.status = 'final';
                         break;
                     case 'MedicationRequest':
-                        e.resource.status = 'completed';
+                        e.status = 'completed';
                         break;
                 }
             });
 
         /* Ensure that all Patient resources have an identifier */
-        transfer.exportedBundle.entry
-            .filter((e: { resource: { resourceType: string; identifier: any; }; }) => e.resource.resourceType === 'Patient' && !e.resource.identifier)
-            .forEach((e: { resource: { identifier: { system: string; value: any; }[]; id: any; }; }) => {
-                e.resource.identifier = [{
+        transfer.exportedResources
+            .filter((e: { resourceType: string; identifier: any; }) => e.resourceType === 'Patient' && !e.identifier)
+            .forEach((e: { identifier: { system: string; value: any; }[]; id: any; }) => {
+                e.identifier = [{
                     system: 'https://sanerproject.org',
-                    value: e.resource.id
+                    value: e.id
                 }];
             });
 

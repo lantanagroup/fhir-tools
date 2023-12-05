@@ -14,7 +14,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
             if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
             if (y = 0, t) op = [op[0] & 2, t.value];
             switch (op[0]) {
@@ -35,7 +35,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.Transaction = void 0;
 var auth_1 = require("./auth");
 var path = require("path");
@@ -43,7 +43,7 @@ var fs = require("fs");
 var fhir_1 = require("fhir/fhir");
 var request = require("request");
 var helper_1 = require("./helper");
-var Transaction = (function () {
+var Transaction = exports.Transaction = (function () {
     function Transaction(options) {
         this.fhir = new fhir_1.Fhir();
         this.bundles = [];
@@ -211,7 +211,8 @@ var Transaction = (function () {
                                             .then(function (results) {
                                             _this.logBundleResponse(bundleInfo.path, results);
                                             activeTransactions.splice(activeTransactions.indexOf(activeTransaction), 1);
-                                        })["catch"](function (ex) {
+                                        })
+                                            .catch(function (ex) {
                                             activeTransactions.splice(activeTransactions.indexOf(activeTransaction), 1);
                                             if (ex.resourceType === 'OperationOutcome') {
                                                 (0, helper_1.log)("Response is OperationOutcome executing batch/transaction ".concat(bundleInfo.path, " due to"), true);
@@ -252,5 +253,4 @@ var Transaction = (function () {
     Transaction.description = 'Execute a bundle as a transaction on the destination fhirServer';
     return Transaction;
 }());
-exports.Transaction = Transaction;
 //# sourceMappingURL=transaction.js.map

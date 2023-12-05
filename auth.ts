@@ -12,10 +12,21 @@ export class Auth {
             return;
         }
 
-        const optionsContent = fs.readFileSync(optionsFile).toString();
-        const options: AuthOptions = parse(optionsContent);
+        let options: AuthOptions;
+
+        try {
+            options = JSON.parse(optionsFile);
+        } catch {
+            const optionsContent = fs.readFileSync(optionsFile).toString();
+            options = parse(optionsContent);
+        }
 
         switch (options.type) {
+            case 'bearerToken':
+                if (options.token) {
+                    this.authHeader = `Bearer ${options.token}`;
+                }
+                return;
             case 'basic':
                 if (options.basic) {
                     const token = btoa(options.basic.username + ':' + options.basic.password);

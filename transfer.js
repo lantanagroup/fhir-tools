@@ -14,7 +14,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
             if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
             if (y = 0, t) op = [op[0] & 2, t.value];
             switch (op[0]) {
@@ -35,14 +35,14 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.Transfer = void 0;
 var request = require("request");
 var export_1 = require("./export");
 var path = require("path");
 var fs = require("fs");
 var helper_1 = require("./helper");
-var Transfer = (function () {
+var Transfer = exports.Transfer = (function () {
     function Transfer(options) {
         this._bundleEntryCount = 500;
         this.messages = [];
@@ -73,7 +73,7 @@ var Transfer = (function () {
             alias: 's',
             type: 'number',
             describe: 'The size of results to return per page when requesting resources from the source server',
-            "default": 50
+            default: 50
         })
             .option('history', {
             alias: 'h',
@@ -540,5 +540,4 @@ var Transfer = (function () {
     Transfer.description1 = 'Transfer resources from one server to another';
     return Transfer;
 }());
-exports.Transfer = Transfer;
 //# sourceMappingURL=transfer.js.map

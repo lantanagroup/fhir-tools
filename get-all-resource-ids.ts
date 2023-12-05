@@ -10,6 +10,7 @@ export class GetAllResourceIdsOptions {
     resource_type: string;
     out: string;
     'as-list-resource' = false;
+    countPerPage = 100;
 }
 
 export class GetAllResourceIds {
@@ -33,9 +34,16 @@ export class GetAllResourceIds {
                 describe: 'File path to output the ids to'
             })
             .option('as-list-resource', {
+                describe: 'Output as a JSON List resource',
                 alias: 'l',
                 type: 'boolean',
                 default: false
+            })
+            .option('count-per-page', {
+                describe: 'The number of resources to request per page',
+                alias: 'c',
+                type: 'number',
+                default: 100
             });
     }
 
@@ -84,7 +92,7 @@ export class GetAllResourceIds {
     }
 
     public async execute() {
-        const startingUrl = this.options.fhir_base + (this.options.fhir_base.endsWith('/') ? '' : '/') + this.options.resource_type + '?_elements=id&_count=100';
+        const startingUrl = this.options.fhir_base + (this.options.fhir_base.endsWith('/') ? '' : '/') + this.options.resource_type + '?_elements=id&_count=' + this.options.countPerPage;
         const bundle = await this.getNext(startingUrl);
 
         if (bundle && bundle.entry) {
